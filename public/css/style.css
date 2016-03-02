@@ -1,0 +1,13 @@
+.chat-section {
+  width: 100vw;
+  height: 500px;
+}
+
+.chat-form {
+  background-color: rgb(184, 184, 184);
+  height: auto;
+}
+
+.chat-input {
+  height: 20px;
+}

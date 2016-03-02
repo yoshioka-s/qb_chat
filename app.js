@@ -1,12 +1,11 @@
 var express = require('express');
 var bodyParser = require('body-parser');
-var fs = require('fs');
-var chatController = require('./controlleres/chatController.js');
+var chatController = require('./controllers/chatController.js');
 
 var app = express();
-app.use(express.static('client'));
 app.use(bodyParser.json());
-
+app.use(express.static(__dirname + '/node_mondules'));
+app.use(express.static(__dirname + '/public'));
 app.use('/', chatController);
 
 

@@ -1,11 +1,27 @@
 {
-  "name": "quickbox_module",
+  "name": "quickblox_module",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "browserify -t [ babelify --presets [ react ] ] public/javascript/chat.js -o public/javascript/chat-bundle.js",
+    "watch-front": "watchify -t [ babelify --presets [ react ] ] public/javascript/chat.js -o public/javascript/chat-bundle.js",
+    "watch-back": "nodemon app.js",
+    "watch": "npm run watch-front & npm run watch-back"
   },
   "author": "yoshioka-s",
-  "license": "BSD-2-Clause"
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "browserify": "~13.0.0",
+    "watchify": "~3.7.0"
+  },
+  "dependencies": {
+    "jquery": "~2.2.1",
+    "bluebird": "~3.3.3",
+    "body-parser": "~1.15.0",
+    "express": "~4.13.4",
+    "quickblox": "~2.0.4",
+    "react": "~0.14.7"
+  }
 }

@@ -6,6 +6,7 @@
 .chat-form {
   background-color: rgb(184, 184, 184);
   height: auto;
+  display: none;
 }
 
 .chat-input {

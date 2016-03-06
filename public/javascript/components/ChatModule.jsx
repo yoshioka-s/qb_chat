@@ -1,13 +1,18 @@
 var React = require('react');
-// var $ = require('jquery');
-// var Promise = require('bluebird');
-var QB = require('quickblox');
+var QBActions = require('../actions/QBActions.js');
+var QBStore = require('../stores/QBStore');
+var LogInForm = require('./LogInForm.jsx');
+
 
 var ChatModule = React.createClass({
   getInitialState: function () {
     return {
       isFormShown: false
     };
+  },
+
+  componentDidMount: function() {
+    QBStore.addChangeListener(this._onChange);
   },
 
   /**
@@ -21,14 +26,18 @@ var ChatModule = React.createClass({
     }
   },
 
-  /**
-  * send user message to server
-  */
-  submitMessage: function () {
-    var newMessage = this.state.newMessage;
-    // TODO: post request to the server
+  onChangeMessage: function (e) {
+    this.setState({newMessage: e.target.value});
+  },
+
+  sendMessage: function () {
+    QBActions.sendMessage(this.state.newMessage);
     this.setState({newMessage: ''});
-  }
+  },
+
+  signOut: function (argument) {
+    QBActions.signOut();
+  },
 
 
   render: function () {
@@ -37,7 +46,7 @@ var ChatModule = React.createClass({
 
     return (
       <div className="quickblox-chat">
-        <h4>Hello</h4>
+        <button onClick={this.signOut}>Sign out</button>
         <button className="btn" onClick={this.toggleChat} >{chatNowText}</button>
         <div className={formToggleClass + ' chat-form'}>
           <div className="chat-display">
@@ -51,13 +60,22 @@ var ChatModule = React.createClass({
           </div>
 
           <div className="chat-input">
-            <input type="text" name="message" value={this.state.newMessage} placeholder="type message here"></input>
-            <input type="button" onClick={this.submitMessage}></input>
+            <input type="text" name="message" onChange={this.onChangeMessage} placeholder="type message here"></input>
+            <input type="button" onClick={this.sendMessage}></input>
           </div>
 
         </div>
+
+        <LogInForm/>
       </div>
     );
+  },
+
+  _onChange: function () {
+    console.log(QBStore.getMessages());
+    this.setState({
+      messages: QBStore.getMessages()
+    });
   }
 });
 

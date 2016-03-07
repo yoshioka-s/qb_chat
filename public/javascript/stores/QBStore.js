@@ -5,17 +5,15 @@ var assign = require('object-assign');
 var Promise = require('bluebird').Promise;
 var QB = require('quickblox');
 var CREDENTIALS = require('../../../settings/quickblox.js');
+var supportAccount = require('../../../settings/account.js');
 
 var CHANGE_EVENT = 'change';
 
 QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
-QB.createSession(function(err, result) {
-  // callback function
-});
 
 var _user =  null;
-var _messages = [];
-var _opponentId = '';
+var _messages = [{isAdmin:true, text:'admin'}, {isAdmin:false, text:'customer'}];
+var _opponentId = supportAccount.userId;
 
 /**
 * sign up a new user
@@ -48,16 +46,25 @@ function signUp(name, password) {
 */
 function signIn(name, password) {
   return new Promise(function (resolve, rejecct) {
-    QB.login({login: name, password: password}, function(err, user){
-      if (!user) {
+    QB.createSession({login: name, password: password}, function(err, res){
+      if (!res) {
         // error
         console.error(err);
         rejecct(err);
       }
       // success
-      _user = user;
-      console.log(user);
-      resolve(user);
+      console.log(res);
+      _user = res.user_id;
+      console.log('user', _user);
+      QB.chat.connect({userId: _user, password: password}, function(err, roster) {
+        if (err) {
+          console.log(err);
+          reject(err);
+          return;
+        }
+        console.log('connected', roster);
+        resolve(roster);
+      });
     });
   });
 }
@@ -83,10 +90,28 @@ function signOut() {
 }
 
 /**
+* on signing in, start a new chat
+*/
+function openChat() {
+  console.log({userId: _user});
+  $.ajax({
+    method: 'get',
+    url: '/start',
+    data: {userId: _user},
+    dataType: 'json'
+  })
+  .done(function (res) {
+    console.log(res);
+    _opponentId = res.opponentId;
+  });
+}
+
+/**
 * @return {array} messages
 */
 function onMessage(userId, message) {
-  _messages.push({userId: userId, message: message});
+  console.log('onMessage',userId, message);
+  _messages.push({isAdmin: userId===_opponentId, text: message.body});
   QBStore.emitChange();
 }
 QB.chat.onMessageListener = onMessage;
@@ -95,6 +120,7 @@ QB.chat.onMessageListener = onMessage;
 * @param {string} message
 */
 function sendMessage(message) {
+  console.log('sendMessage', message);
   QB.chat.send(_opponentId, {
     type: 'chat',
     body: message,
@@ -102,6 +128,7 @@ function sendMessage(message) {
       save_to_history: 1,
     }
   });
+  _messages.push({isAdmin: false, text: message});
 }
 
 
@@ -143,14 +170,20 @@ var QBStore = assign({}, EventEmitter.prototype, {
     switch(action.actionType) {
       case QBConstants.SIGN_UP:
         signUp(action.name, action.password)
-        .then(function (user) {
+        .then(function (res) {
+          return openChat(res);
+        })
+        .then(function () {
           QBStore.emitChange();
         });
         break;
 
       case QBConstants.SIGN_IN:
         signIn(action.name, action.password)
-        .then(function (user) {
+        .then(function (res) {
+          return openChat(res);
+        })
+        .then(function () {
           QBStore.emitChange();
         });
         break;

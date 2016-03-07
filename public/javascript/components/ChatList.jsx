@@ -1,13 +1,9 @@
 var React = require('react');
 var QBActions = require('../actions/QBActions.js');
 var QBStore = require('../stores/QBStore');
-var LogInForm = require('./LogInForm.jsx');
 
-// TODO: send file
-// TODO: select response
 // TODO: admin module
 // TODO: admin get list of chats
-// TODO:
 
 
 var ChatModule = React.createClass({

@@ -3,11 +3,9 @@ var QBActions = require('../actions/QBActions.js');
 var QBStore = require('../stores/QBStore');
 var LogInForm = require('./LogInForm.jsx');
 
-// TODO: send file
 // TODO: select response
-// TODO: admin module
 // TODO: admin get list of chats
-// TODO:
+// TODO: get secret info from server
 
 
 var ChatModule = React.createClass({
@@ -15,7 +13,8 @@ var ChatModule = React.createClass({
     return {
       isFormShown: false,
       messages: QBStore.getMessages(),
-      isLoggedIn: false
+      isLoggedIn: false,
+      sessionToken: QBStore.getSessionToken()
     };
   },
 
@@ -44,21 +43,36 @@ var ChatModule = React.createClass({
     this.setState({newMessage: ''});
   },
 
+  sendFile: function () {
+    var inputFile = $("input[type=file]")[0].files[0];
+    QBActions.uploadFile(inputFile);
+  },
+
   signOut: function (argument) {
     QBActions.signOut();
   },
 
 
   render: function () {
+    var state = this.state;
     var logInClass = this.state.isFormShown && !this.state.isLoggedIn ? 'shown' : 'hidden';
     var chatClass = this.state.isFormShown && this.state.isLoggedIn ? 'shown' : 'hidden';
     var chatNowText = this.state.isFormShown ? 'Hide Chat' : 'Chat Now';
 
     var messages = this.state.messages.map(function (message) {
       var className = "message " + (message.isAdmin ? 'admin' : 'customer');
+      var attachments = [];
+      console.log(message);
+      if (message.attachments&&message.attachments.length > 0) {
+        attachments = message.attachments.map(function (file) {
+          return (<br><a href={"http://api.quickblox.com/blobs/"+file.id+"/download?token="+state.sessionToken}>{file.name}</a>);
+        });
+      }
+      console.log(attachments);
       return (
         <div className={ className }>
           {message.text}
+          { attachments }
         </div>
       );
     });
@@ -76,6 +90,7 @@ var ChatModule = React.createClass({
           <div className="chat-input">
             <input type="text" name="message" onChange={this.onChangeMessage} value={this.state.newMessage} placeholder="type message here"></input>
             <input type="button" onClick={this.sendMessage} value="send"></input>
+            <input type="file" onChange={this.sendFile}></input>
           </div>
 
         </div>
@@ -90,7 +105,8 @@ var ChatModule = React.createClass({
     console.log(QBStore.getMessages());
     this.setState({
       messages: QBStore.getMessages(),
-      isLoggedIn: !!QBStore.getUser()
+      isLoggedIn: !!QBStore.getUser(),
+      sessionToken: QBStore.getSessionToken()
     });
   }
 });

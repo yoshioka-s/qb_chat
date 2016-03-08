@@ -6,17 +6,13 @@ var QBStore = require('../stores/QBStore');
 // TODO: admin get list of chats
 
 
-var ChatModule = React.createClass({
+var ChatList = React.createClass({
   getInitialState: function () {
     return {
-      isFormShown: false,
+      customers: QBStore.getCustomers,
       messages: QBStore.getMessages(),
       isLoggedIn: false
     };
-  },
-
-  componentDidMount: function() {
-    QBStore.addChangeListener(this._onChange);
   },
 
   /**
@@ -80,17 +76,10 @@ var ChatModule = React.createClass({
         </div>
       </div>
     );
-  },
-
-  _onChange: function () {
-    console.log(QBStore.getMessages());
-    this.setState({
-      messages: QBStore.getMessages(),
-      isLoggedIn: !!QBStore.getUser()
-    });
   }
+
 });
 
 
 
-module.exports = ChatModule;
+module.exports = ChatList;

@@ -41,6 +41,16 @@ var QBActions = {
       actionType: QBConstants.SEND,
       message: message
     });
+  },
+
+  /**
+  * @param  {string} message
+  */
+  uploadFile: function(inputFile) {
+    AppDispatcher.handleViewAction({
+      actionType: QBConstants.UPLOAD,
+      inputFile: inputFile
+    });
   }
 };
 

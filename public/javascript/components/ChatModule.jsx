@@ -144,17 +144,18 @@ var ChatModule = React.createClass({
           </div>
 
           <div className="chat-input">
-            <div>
+            <div className="new-options">
               <input type="text" className={this.state.isOptionInput ? '':'hidden'} onChange={this.onChangeOptionInput} value={this.state.newOption}></input>
               <button className="btn" onClick={this.showOptionInput}>{this.state.isOptionInput ? 'OK':'add option'}</button>
               {newOptions}
             </div>
-            <div>
+            <div className="uploaded-files">
               <input type="file" onChange={this.sendFile}></input>
               {files}
             </div>
             <textarea className="message-input" name="message" onChange={this.onChangeMessage} value={state.newMessage} placeholder="type message here"></textarea>
-            <input type="button" onClick={this.sendMessage} value="send"></input>
+            <br></br>
+            <input type="button" className="btn" onClick={this.sendMessage} value="send"></input>
           </div>
 
         </div>

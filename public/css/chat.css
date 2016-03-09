@@ -31,7 +31,21 @@
 }
 
 .chat-input {
-  height: 20px;
+  /*height: 20px;*/
+}
+
+.new-options {
+  width: 50%;
+  display: inline-block;
+}
+
+.uploaded-files {
+  width: 50%;
+  display: inline-block;
+}
+
+.message-input {
+  width: 100%;
 }
 
 .hidden {

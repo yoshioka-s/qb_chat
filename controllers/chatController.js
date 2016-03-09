@@ -16,7 +16,7 @@ router.get('/start', function(req, res) {
   // save the customer
   customers.push(userId);
   var opponentId = (userId==supportAccount.userId ? 10547951:supportAccount.userId);
-  res.json({opponentId: opponentId});
+  res.json({adminId: opponentId});
 });
 
 router.get('/customers', function (req, res) {

@@ -1,20 +1,22 @@
 var React = require('react');
+var _ = require('underscore');
 var QBActions = require('../actions/QBActions.js');
 var QBStore = require('../stores/QBStore');
 var LogInForm = require('./LogInForm.jsx');
+var ChatList = require('./ChatList.jsx');
 
 // TODO: select response
-// TODO: admin get list of chats
-// TODO: get secret info from server
-
+// TODO: retrieve past messages
 
 var ChatModule = React.createClass({
   getInitialState: function () {
     return {
       isFormShown: false,
-      messages: QBStore.getMessages(),
-      isLoggedIn: false,
-      sessionToken: QBStore.getSessionToken()
+      currentUser: false,
+      newMessage: '',
+      isOptionInput: false,
+      newOptions: [],
+      newOption: ''
     };
   },
 
@@ -37,10 +39,19 @@ var ChatModule = React.createClass({
     this.setState({newMessage: e.target.value});
   },
 
+  selectOption: function (e) {
+    QBActions.sendMessage(e.target.value);
+  },
+
   sendMessage: function () {
-    QBActions.sendMessage(this.state.newMessage);
-    console.log(this.state.newMessage);
-    this.setState({newMessage: ''});
+    QBActions.sendMessage(this.state.newMessage, this.state.newOptions);
+    console.log(this.state.newOptions);
+    this.setState({
+      newMessage: '',
+      isOptionInput: false,
+      newOptions: [],
+      newOption: ''
+    });
   },
 
   sendFile: function () {
@@ -48,33 +59,77 @@ var ChatModule = React.createClass({
     QBActions.uploadFile(inputFile);
   },
 
+  showOptionInput: function () {
+    if (this.state.newOption.trim().length === 0) {
+      this.setState({isOptionInput: true});
+      return;
+    }
+    // OK, add this to options
+    var options = this.state.newOptions;
+    options.push(this.state.newOption.trim());
+    console.log(options);
+    this.setState({newOption: '', newOptions: options, isOptionInput: false});
+  },
+
+  onChangeOptionInput: function (e) {
+    this.setState({newOption: e.target.value});
+  },
+
   signOut: function (argument) {
     QBActions.signOut();
+    this.setState({
+      newMessage: '',
+      isOptionInput: false,
+      newOptions: [],
+      newOption: ''
+    });
   },
 
 
   render: function () {
+    var chatModule = this;
     var state = this.state;
-    var logInClass = this.state.isFormShown && !this.state.isLoggedIn ? 'shown' : 'hidden';
-    var chatClass = this.state.isFormShown && this.state.isLoggedIn ? 'shown' : 'hidden';
-    var chatNowText = this.state.isFormShown ? 'Hide Chat' : 'Chat Now';
+    var logInClass = state.isFormShown && !state.currentUser ? 'shown' : 'hidden';
+    var chatClass = state.isFormShown && state.currentUser ? 'shown' : 'hidden';
+    var chatNowText = state.isFormShown ? 'Hide Chat' : 'Chat Now';
 
-    var messages = this.state.messages.map(function (message) {
-      var className = "message " + (message.isAdmin ? 'admin' : 'customer');
+    var messages = QBStore.getMessages().map(function (messageObj) {
+      // each message view
+      var className = "message " + (messageObj.sender_id===state.currentUser ? 'admin' : 'customer');
+
+      var options = [];
+      _.each(messageObj, function (value, key) {
+        if (key.indexOf('customParam') === 0) {
+          options.push(<p><input type="radio" name="option" onClick={chatModule.selectOption} value={value}></input>{value}</p>);
+        }
+      })
+
       var attachments = [];
-      console.log(message);
-      if (message.attachments&&message.attachments.length > 0) {
-        attachments = message.attachments.map(function (file) {
-          return (<br><a href={"http://api.quickblox.com/blobs/"+file.id+"/download?token="+state.sessionToken}>{file.name}</a>);
+      if (messageObj.attachments&&messageObj.attachments.length > 0) {
+        attachments = messageObj.attachments.map(function (file) {
+          return (
+            <p>
+              <a href={"http://api.quickblox.com/blobs/"+file.id+"/download?token="+QBStore.getSessionToken()}>{file.name}</a>
+            </p>
+          );
         });
       }
-      console.log(attachments);
+
       return (
         <div className={ className }>
-          {message.text}
+          {messageObj.message}
           { attachments }
+          { options }
         </div>
       );
+    });
+
+    var newOptions = this.state.newOptions.map(function (newOption) {
+      return <p><input type="radio"></input>{newOption}</p>
+    });
+
+    var files = _.map(QBStore.getUploadedFiles(), function (file) {
+      return <p>{file.name}</p>;
     });
 
     return (
@@ -82,15 +137,24 @@ var ChatModule = React.createClass({
         <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
         <button className="btn" onClick={this.toggleForm} >{chatNowText}</button>
         <div className={chatClass + ' chat-form'}>
+          <ChatList />
           <div className="chat-display">
             {messages}
             <br className="clear"></br>
           </div>
 
           <div className="chat-input">
-            <input type="text" name="message" onChange={this.onChangeMessage} value={this.state.newMessage} placeholder="type message here"></input>
+            <div>
+              <input type="text" className={this.state.isOptionInput ? '':'hidden'} onChange={this.onChangeOptionInput} value={this.state.newOption}></input>
+              <button className="btn" onClick={this.showOptionInput}>{this.state.isOptionInput ? 'OK':'add option'}</button>
+              {newOptions}
+            </div>
+            <div>
+              <input type="file" onChange={this.sendFile}></input>
+              {files}
+            </div>
+            <textarea className="message-input" name="message" onChange={this.onChangeMessage} value={state.newMessage} placeholder="type message here"></textarea>
             <input type="button" onClick={this.sendMessage} value="send"></input>
-            <input type="file" onChange={this.sendFile}></input>
           </div>
 
         </div>
@@ -104,13 +168,9 @@ var ChatModule = React.createClass({
   _onChange: function () {
     console.log(QBStore.getMessages());
     this.setState({
-      messages: QBStore.getMessages(),
-      isLoggedIn: !!QBStore.getUser(),
-      sessionToken: QBStore.getSessionToken()
+      currentUser: QBStore.getUser()
     });
   }
 });
-
-
 
 module.exports = ChatModule;

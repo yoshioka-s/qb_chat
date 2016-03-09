@@ -3,21 +3,29 @@ var QBConstants = require('../constants/QBConstants');
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var Promise = require('bluebird').Promise;
+var _ = require('underscore');
 var QB = require('quickblox');
 var CREDENTIALS = require('../../../settings/quickblox.js');
 var supportAccount = require('../../../settings/account.js');
 
 var CHANGE_EVENT = 'change';
 
-QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
-
 var _user =  null;
 var _uploadedFiles = [];
-var _messages = [{isAdmin:true, text:'admin', attachments:[]}, {isAdmin:false, text:'customer', attachments: []}];
-var _opponentId = supportAccount.userId;
-var _customers = [];
+var _messages = [];
+var _opponentId = supportAccount.userId;  // FIXME hide admin info into server side
+var _adminId = supportAccount.userId;
+var _dialogs = [];
 var _sessionToken = '';
 
+QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
+QB.createSession(function (err, res) {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  _sessionToken = res.token;
+});
 /**
 * sign up a new user
 * @param {string} username
@@ -32,11 +40,23 @@ function signUp(name, password) {
         // error
         console.error(err);
         reject(err);
+        return;
       }
       // success
-      _user = user;
+      _user = user.id;
       console.log(user);
       resolve(user);
+    });
+  })
+  .then(function (user) {
+    QB.chat.connect({userId: _user, password: password}, function(err, roster) {
+      if (err) {
+        console.error(err);
+        throw err;
+      }
+      console.log('connected', roster);
+      sendMessage(name+' signed up!');
+      QBStore.emitChange();
     });
   });
 }
@@ -49,25 +69,31 @@ function signUp(name, password) {
 */
 function signIn(name, password) {
   return new Promise(function (resolve, reject) {
-    QB.createSession({login: name, password: password}, function(err, res){
+    QB.login({login: name, password: password}, function(err, res){
       if (!res) {
         // error
         console.error(err);
         reject(err);
+        return;
       }
       // success
       console.log(res);
-      _sessionToken = res.token;
-      _user = res.user_id;
+      // _sessionToken = res.token;
+      _user = res.id;
       console.log('user', _user);
-      QB.chat.connect({userId: _user, password: password}, function(err, roster) {
-        if (err) {
-          console.log(err);
-          reject(err);
-          return;
-        }
-        console.log('connected', roster);
-        resolve(roster);
+      resolve(res);
+    });
+  })
+  .then(function () {
+    QB.chat.connect({userId: _user, password: password}, function(err, roster) {
+      if (err) {
+        console.error(err);
+        throw err;
+      }
+      console.log('connected', roster);
+      return retrieveDialogs()
+      .then(function () {
+        QBStore.emitChange();
       });
     });
   });
@@ -84,9 +110,16 @@ function signOut() {
         // error
         console.error(err);
         reject(err);
+        return;
       }
       // success
-      _user = null;
+      _user =  null;
+      _uploadedFiles = [];
+      _messages = [];
+      _opponentId = supportAccount.userId;  // FIXME hide admin info into server side
+      _dialogs = [];
+      _sessionToken = '';
+
       console.log('log out');
       resolve(result);
     });
@@ -106,7 +139,7 @@ function openChat() {
   })
   .done(function (res) {
     console.log(res);
-    _opponentId = res.opponentId;
+    _adminId = res.adminId;
   });
 }
 
@@ -115,31 +148,50 @@ function openChat() {
 */
 function onMessage(userId, message) {
   console.log('onMessage',userId, message);
-  _messages.push({isAdmin: userId===_opponentId, text: message.body, attachments: message.extension.attachments});
-  QBStore.emitChange();
+  _messages.push({sender_id: userId, message: message.body, attachments: message.extension.attachments});
+  retrieveDialogs()
+  .then(function (dialogs) {
+    QBStore.emitChange();
+  });
 }
 QB.chat.onMessageListener = onMessage;
 
 /**
 * @param {string} message
 */
-function sendMessage(message) {
+function sendMessage(message, options) {
   console.log('sendMessage', message, _uploadedFiles);
   var extension = {
     save_to_history: 1
   };
+
+  // file attaching
   if (_uploadedFiles.length > 0) {
     extension.attachments = _uploadedFiles.map(function (file) {
       return {id: file.id, type: file.content_type, name: file.name};
     });
   }
-  console.log(extension);
-  QB.chat.send(_opponentId, {
+
+  var data = {
     type: 'chat',
     body: message,
     extension: extension
+  };
+  var messageObj = {
+    sender_id: _user,
+    message: message,
+    attachments: extension.attachments
+  };
+
+  // options
+  _.each(options, function (option, i) {
+    messageObj['customParam'+i] = option;
+    data.extension['customParam'+i] = option;
   });
-  _messages.push({isAdmin: false, text: message, attachments: extension.attachments});
+  QB.chat.send(_opponentId, data);
+  console.log('sent message', messageObj);
+  _messages.push(messageObj);
+  _uploadedFiles = [];
 }
 
 /**
@@ -164,6 +216,57 @@ function uploadFile(inputFile) {
   });
 }
 
+/**
+* retrieve dialogs
+* @return {Promise}
+*/
+function retrieveDialogs() {
+  return new Promise(function (resolve, reject) {
+    QB.chat.dialog.list(null, function(err, resDialogs) {
+      if (err) {
+        console.error(err);
+        reject(err);
+        return;
+      }
+      console.log(resDialogs);
+      _dialogs = resDialogs.items;
+      if (_dialogs.length === 1) {
+        switchDialog(_dialogs[0]._id)
+        .then(function () {
+          resolve(resDialogs);
+        });
+      }
+      resolve(resDialogs);
+    });
+  });
+}
+
+/**
+* set customer
+* @return {Promise}
+*/
+function switchDialog(dialogId) {
+  return new Promise(function (resolve, reject) {
+    var params = {chat_dialog_id: dialogId, sort_asc: 'date_sent', limit: 50, skip: 0};
+    QB.chat.message.list(params, function(err, messages) {
+      if (err) {
+        console.error(err);
+        reject(err);
+        return;
+      }
+      _messages = messages.items;
+      console.log('messages get!', messages);
+      var selectedDialog = _.find(_dialogs, function (dialog) {
+        return dialog._id === dialogId;
+      });
+      console.log(_dialogs, dialogId, selectedDialog);
+      _opponentId = selectedDialog.user_id;
+      console.log('_opponentId',_opponentId);
+
+      resolve(messages);
+    });
+  });
+}
 
 var QBStore = assign({}, EventEmitter.prototype, {
 
@@ -179,12 +282,16 @@ var QBStore = assign({}, EventEmitter.prototype, {
     return _user;
   },
 
-  getCustomers: function () {
-    return _customers;
+  getUploadedFiles: function () {
+    return _uploadedFiles;
+  },
+
+  getDialogs: function () {
+    return _dialogs;
   },
 
   getSessionToken: function () {
-    return  _sessionToken;
+    return _sessionToken;
   },
 
   emitChange: function() {
@@ -211,9 +318,6 @@ var QBStore = assign({}, EventEmitter.prototype, {
     switch(action.actionType) {
       case QBConstants.SIGN_UP:
         signUp(action.name, action.password)
-        .then(function (res) {
-          return openChat(res);
-        })
         .then(function () {
           QBStore.emitChange();
         });
@@ -221,26 +325,32 @@ var QBStore = assign({}, EventEmitter.prototype, {
 
       case QBConstants.SIGN_IN:
         signIn(action.name, action.password)
-        .then(function (res) {
-          return openChat(res);
-        })
         .then(function () {
           QBStore.emitChange();
         });
         break;
 
       case QBConstants.SIGN_OUT:
-        signOut();
-        QBStore.emitChange();
+        signOut()
+        .then(function () {
+          QBStore.emitChange();
+        });
         break;
 
       case QBConstants.SEND:
-        sendMessage(action.message);
+        sendMessage(action.message, action.options);
         QBStore.emitChange();
         break;
 
       case QBConstants.UPLOAD:
         uploadFile(action.inputFile)
+        .then(function () {
+          QBStore.emitChange();
+        });
+        break;
+
+      case QBConstants.SWITCH:
+        switchDialog(action.dialogId)
         .then(function () {
           QBStore.emitChange();
         });

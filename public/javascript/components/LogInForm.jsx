@@ -13,7 +13,6 @@ var LogInForm = React.createClass({
   * submit sign up / log in info to server
   */
   submit: function () {
-    console.log(this.state.name);
     if (this.state.hasAccount) {
       // sign in
       QBActions.signIn(this.state.name, this.state.password);
@@ -38,7 +37,6 @@ var LogInForm = React.createClass({
     this.setState({password: e.target.value});
   },
   onConfChange: function (e) {
-    console.log(e.target.value);
     this.setState({passwordConfirm: e.target.value});
   },
 

@@ -28,6 +28,7 @@
     "babel-preset-react": "~6.5.0",
     "keymirror": "~0.1.1",
     "object-assign": "~4.0.1",
-    "flux": "~2.1.1"
+    "flux": "~2.1.1",
+    "underscore": "~1.8.3"
   }
 }

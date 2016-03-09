@@ -1,6 +1,11 @@
-.chat-section {
-  width: 100vw;
+.quickblox-chat {
+  width: 40vw;
+
+}
+
+.chat-display {
   height: 500px;
+  overflow-y: scroll;
 }
 
 .chat-form {
@@ -8,6 +13,21 @@
   height: auto;
   display: none;
   padding: 20px 20px 0 20px;
+}
+
+.btn {
+  background-color: #9dcb2c;
+  display: inline-block;
+  border-radius: 5px;
+  padding: 10px 15px;
+}
+
+.btn.dialog-btn {
+  background-color: #9d9d9d;
+}
+
+.btn.dialog-btn.selected {
+  background-color: #ebed79;
 }
 
 .chat-input {

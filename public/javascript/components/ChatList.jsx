@@ -9,71 +9,34 @@ var QBStore = require('../stores/QBStore');
 var ChatList = React.createClass({
   getInitialState: function () {
     return {
-      customers: QBStore.getCustomers,
-      messages: QBStore.getMessages(),
-      isLoggedIn: false
+      dialogId: null
     };
   },
 
-  /**
-  * open the chat form
-  */
-  toggleForm: function () {
-    if (this.state.isFormShown) {
-      this.setState({isFormShown: false});
-    } else {
-      this.setState({isFormShown: true});
-    }
+  switchDialog: function (event) {
+    var dialogId = $(event.currentTarget).data('target');
+    QBActions.switchDialog(dialogId);
+    this.setState({dialogId: dialogId});
   },
-
-  onChangeMessage: function (e) {
-    this.setState({newMessage: e.target.value});
-  },
-
-  sendMessage: function () {
-    QBActions.sendMessage(this.state.newMessage);
-    console.log(this.state.newMessage);
-    this.setState({newMessage: ''});
-  },
-
-  signOut: function (argument) {
-    QBActions.signOut();
-  },
-
 
   render: function () {
-    var logInClass = this.state.isFormShown && !this.state.isLoggedIn ? 'shown' : 'hidden';
-    var chatClass = this.state.isFormShown && this.state.isLoggedIn ? 'shown' : 'hidden';
-    var chatNowText = this.state.isFormShown ? 'Hide Chat' : 'Chat Now';
-
-    var messages = this.state.messages.map(function (message) {
-      var className = "message " + (message.isAdmin ? 'admin' : 'customer');
-      return (
-        <div className={ className }>
-          {message.text}
-        </div>
-      );
+    var chatList = this;
+    var dialogs = QBStore.getDialogs().map(function (dialog) {
+      var selectedClass = chatList.state.dialogId === dialog._id ? 'selected':'';
+      return (<div className={'btn dialog-btn '+selectedClass}
+          onClick={chatList.switchDialog}
+          data-target={dialog._id}
+        >
+          {dialog.name}
+        </div>);
     });
+    if (dialogs.length === 1) {
+      dialogs = [];
+    }
 
     return (
-      <div className="quickblox-chat">
-        <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
-        <button className="btn" onClick={this.toggleForm} >{chatNowText}</button>
-        <div className={chatClass + ' chat-form'}>
-          <div className="chat-display">
-            {messages}
-            <br className="clear"></br>
-          </div>
-
-          <div className="chat-input">
-            <input type="text" name="message" onChange={this.onChangeMessage} value={this.state.newMessage} placeholder="type message here"></input>
-            <input type="button" onClick={this.sendMessage} value="send"></input>
-          </div>
-
-        </div>
-        <div className={logInClass}>
-          <LogInForm />
-        </div>
+      <div className="quickblox-customer-list">
+        {dialogs}
       </div>
     );
   }

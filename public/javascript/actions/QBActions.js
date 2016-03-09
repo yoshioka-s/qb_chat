@@ -36,10 +36,11 @@ var QBActions = {
   /**
   * @param  {string} message
   */
-  sendMessage: function(message) {
+  sendMessage: function(message, options) {
     AppDispatcher.handleViewAction({
       actionType: QBConstants.SEND,
-      message: message
+      message: message,
+      options: options
     });
   },
 
@@ -50,6 +51,13 @@ var QBActions = {
     AppDispatcher.handleViewAction({
       actionType: QBConstants.UPLOAD,
       inputFile: inputFile
+    });
+  },
+
+  switchDialog: function (dialogId) {
+    AppDispatcher.handleViewAction({
+      actionType: QBConstants.SWITCH,
+      dialogId: dialogId
     });
   }
 };

@@ -6,5 +6,6 @@ module.exports = keyMirror({
   SIGN_OUT: null,
   OPEN:     null,
   SEND:     null,
-  UPLOAD:   null
+  UPLOAD:   null,
+  SWITCH:   null
 });

@@ -8,7 +8,8 @@
     "build": "browserify -t [ babelify --presets [ react ] ] public/javascript/chat.js -o public/javascript/chat-bundle.js",
     "watch-front": "watchify -t [ babelify --presets [ react ] ] public/javascript/chat.js -o public/javascript/chat-bundle.js",
     "watch-back": "nodemon app.js",
-    "watch": "npm run watch-front & npm run watch-back"
+    "watch": "npm run watch-front & npm run watch-back",
+    "start": "node app.js"
   },
   "author": "yoshioka-s",
   "license": "BSD-2-Clause",

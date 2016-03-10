@@ -75,3 +75,8 @@
 .clear {
   clear: both;
 }
+
+.error-message {
+  font-weight: bold;
+  color: #e04c4c;
+}

@@ -17,6 +17,7 @@ var _opponentId = supportAccount.userId;  // FIXME hide admin info into server s
 var _adminId = supportAccount.userId;
 var _dialogs = [];
 var _sessionToken = '';
+var _loginErrors = '';
 
 QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
 QB.createSession(function (err, res) {
@@ -39,7 +40,8 @@ function signUp(name, password) {
       if (!user) {
         // error
         console.error(err);
-        reject(err);
+        _loginErrors = parseError(err);
+        reject('signup');
         return;
       }
       // success
@@ -73,7 +75,8 @@ function signIn(name, password) {
       if (!res) {
         // error
         console.error(err);
-        reject(err);
+        _loginErrors = {password: 'user name or password is wrong.'};
+        reject('login');
         return;
       }
       // success
@@ -268,6 +271,27 @@ function switchDialog(dialogId) {
   });
 }
 
+/**
+* @param {object} error response from QB
+* @return {array} error messages which users can understand
+*/
+function parseError(err) {
+  var result = {};
+  detail = JSON.parse(err.detail);
+  _.each(detail.errors, function (reasons, field) {
+    // fix field name
+    if (field === 'login') {
+      field = 'username';
+    }
+    // concat error messages
+    result[field] = _.reduce(reasons, function (memo, reason) {
+      return memo + field + ' ' + reason + '. ';
+    }, ' ');
+  });
+
+  return result;
+}
+
 var QBStore = assign({}, EventEmitter.prototype, {
 
   /**
@@ -292,6 +316,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
 
   getSessionToken: function () {
     return _sessionToken;
+  },
+
+  getLoginErrors: function () {
+    return _loginErrors;
   },
 
   emitChange: function() {
@@ -320,6 +348,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
         signUp(action.name, action.password)
         .then(function () {
           QBStore.emitChange();
+        })
+        .catch(function (err) {
+          QBStore.emitChange();
+          throw err;
         });
         break;
 
@@ -327,6 +359,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
         signIn(action.name, action.password)
         .then(function () {
           QBStore.emitChange();
+        })
+        .catch(function (err) {
+          QBStore.emitChange();
+          throw err;
         });
         break;
 

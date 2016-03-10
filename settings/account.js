@@ -1,7 +1,5 @@
 var supportAccount = {
-  userId: 10547143,
-  name: 'shu',
-  password: '12345678'
+  userId: 10547143
 };
 
 module.exports = supportAccount;

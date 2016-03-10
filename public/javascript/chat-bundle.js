@@ -104134,9 +104134,6 @@ var QBStore = require('../stores/QBStore');
 var LogInForm = require('./LogInForm.jsx');
 var ChatList = require('./ChatList.jsx');
 
-// TODO: select response
-// TODO: retrieve past messages
-
 var ChatModule = React.createClass({
   displayName: 'ChatModule',
 
@@ -104176,7 +104173,6 @@ var ChatModule = React.createClass({
 
   sendMessage: function () {
     QBActions.sendMessage(this.state.newMessage, this.state.newOptions);
-    console.log(this.state.newOptions);
     this.setState({
       newMessage: '',
       isOptionInput: false,
@@ -104198,7 +104194,6 @@ var ChatModule = React.createClass({
     // OK, add this to options
     var options = this.state.newOptions;
     options.push(this.state.newOption.trim());
-    console.log(options);
     this.setState({ newOption: '', newOptions: options, isOptionInput: false });
   },
 
@@ -104254,6 +104249,11 @@ var ChatModule = React.createClass({
         });
       }
 
+      setTimeout(function () {
+        var chatDisplay = $('.chat-display');
+        chatDisplay.scrollTop(chatDisplay.prop("scrollHeight"));
+      }, 100);
+
       return React.createElement(
         'div',
         { className: className },
@@ -104285,17 +104285,17 @@ var ChatModule = React.createClass({
       { className: 'quickblox-chat' },
       React.createElement(
         'button',
-        { className: chatClass + ' btn', onClick: this.signOut },
-        'Sign out'
-      ),
-      React.createElement(
-        'button',
         { className: 'btn', onClick: this.toggleForm },
         chatNowText
       ),
       React.createElement(
         'div',
         { className: chatClass + ' chat-form' },
+        React.createElement(
+          'button',
+          { className: chatClass + ' btn', onClick: this.signOut },
+          'Sign out'
+        ),
         React.createElement(ChatList, null),
         React.createElement(
           'div',
@@ -104320,12 +104320,16 @@ var ChatModule = React.createClass({
           React.createElement(
             'div',
             { className: 'uploaded-files' },
-            React.createElement('input', { type: 'file', onChange: this.sendFile }),
+            React.createElement('input', { type: 'file', className: '', onChange: this.sendFile }),
             files
           ),
           React.createElement('textarea', { className: 'message-input', name: 'message', onChange: this.onChangeMessage, value: state.newMessage, placeholder: 'type message here' }),
           React.createElement('br', null),
-          React.createElement('input', { type: 'button', className: 'btn', onClick: this.sendMessage, value: 'send' })
+          React.createElement(
+            'div',
+            { className: 'align-right' },
+            React.createElement('input', { type: 'button', className: 'btn', onClick: this.sendMessage, value: 'send' })
+          )
         )
       ),
       React.createElement(
@@ -104337,7 +104341,6 @@ var ChatModule = React.createClass({
   },
 
   _onChange: function () {
-    console.log(QBStore.getMessages());
     this.setState({
       currentUser: QBStore.getUser()
     });
@@ -104414,7 +104417,7 @@ var LogInForm = React.createClass({
         null,
         title
       ),
-      React.createElement('input', { type: 'name', onChange: this.onNameChange, placeholder: 'user name' }),
+      React.createElement('input', { type: 'text', onChange: this.onNameChange, placeholder: 'user name' }),
       React.createElement(
         'span',
         { className: 'error-message' },
@@ -104520,7 +104523,6 @@ QB.createSession(function (err, res) {
 * @return {Promise}
 */
 function signUp(name, password) {
-  console.log({ login: name, password: password });
   return new Promise(function (resolve, reject) {
     QB.users.create({ login: name, password: password }, function (err, user) {
       if (!user) {
@@ -104532,7 +104534,6 @@ function signUp(name, password) {
       }
       // success
       _user = user.id;
-      console.log(user);
       resolve(user);
     });
   }).then(function (user) {
@@ -104541,7 +104542,6 @@ function signUp(name, password) {
         console.error(err);
         throw err;
       }
-      console.log('connected', roster);
       sendMessage(name + ' signed up!');
       QBStore.emitChange();
     });
@@ -104565,10 +104565,7 @@ function signIn(name, password) {
         return;
       }
       // success
-      console.log(res);
-      // _sessionToken = res.token;
       _user = res.id;
-      console.log('user', _user);
       resolve(res);
     });
   }).then(function () {
@@ -104577,7 +104574,6 @@ function signIn(name, password) {
         console.error(err);
         throw err;
       }
-      console.log('connected', roster);
       return retrieveDialogs().then(function () {
         QBStore.emitChange();
       });
@@ -104606,25 +104602,8 @@ function signOut() {
       _dialogs = [];
       _sessionToken = '';
 
-      console.log('log out');
       resolve(result);
     });
-  });
-}
-
-/**
-* on signing in, start a new chat
-*/
-function openChat() {
-  console.log({ userId: _user });
-  $.ajax({
-    method: 'get',
-    url: '/start',
-    data: { userId: _user },
-    dataType: 'json'
-  }).done(function (res) {
-    console.log(res);
-    _adminId = res.adminId;
   });
 }
 
@@ -104632,7 +104611,6 @@ function openChat() {
 * @return {array} messages
 */
 function onMessage(userId, message) {
-  console.log('onMessage', userId, message);
   _messages.push({ sender_id: userId, message: message.body, attachments: message.extension.attachments });
   retrieveDialogs().then(function (dialogs) {
     QBStore.emitChange();
@@ -104644,7 +104622,6 @@ QB.chat.onMessageListener = onMessage;
 * @param {string} message
 */
 function sendMessage(message, options) {
-  console.log('sendMessage', message, _uploadedFiles);
   var extension = {
     save_to_history: 1
   };
@@ -104673,7 +104650,6 @@ function sendMessage(message, options) {
     data.extension['customParam' + i] = option;
   });
   QB.chat.send(_opponentId, data);
-  console.log('sent message', messageObj);
   _messages.push(messageObj);
   _uploadedFiles = [];
 }
@@ -104687,13 +104663,10 @@ function uploadFile(inputFile) {
     var params = { name: inputFile.name, file: inputFile, type: inputFile.type, size: inputFile.size, 'public': false };
     QB.content.createAndUpload(params, function (err, response) {
       if (err) {
-        console.log(err);
+        console.error(err);
         reject(err);
         return;
       }
-      console.log(response);
-      // var uploadedFile = response;
-      // var uploadedFileId = response.id;
       _uploadedFiles.push(response);
       resolve(response);
     });
@@ -104712,7 +104685,6 @@ function retrieveDialogs() {
         reject(err);
         return;
       }
-      console.log(resDialogs);
       _dialogs = resDialogs.items;
       if (_dialogs.length === 1) {
         switchDialog(_dialogs[0]._id).then(function () {
@@ -104731,6 +104703,7 @@ function retrieveDialogs() {
 */
 function switchDialog(dialogId) {
   return new Promise(function (resolve, reject) {
+    // get the list of dialogs
     var params = { chat_dialog_id: dialogId, sort_asc: 'date_sent', limit: 50, skip: 0 };
     QB.chat.message.list(params, function (err, messages) {
       if (err) {
@@ -104738,16 +104711,18 @@ function switchDialog(dialogId) {
         reject(err);
         return;
       }
+
+      // reset uploaded files
+      _uploadedFiles = [];
+
       _messages = messages.items;
-      console.log('messages get!', messages);
+
       var selectedDialog = _.find(_dialogs, function (dialog) {
         return dialog._id === dialogId;
       });
-      console.log(_dialogs, dialogId, selectedDialog);
       _opponentId = _.find(selectedDialog.occupants_ids, function (userId) {
         return userId !== _user;
       });
-      console.log('_opponentId', _opponentId);
 
       resolve(messages);
     });
@@ -104776,11 +104751,6 @@ function parseError(err) {
 }
 
 var QBStore = assign({}, EventEmitter.prototype, {
-
-  /**
-   * Get the entire collection of messages.
-   * @return {object}
-   */
   getMessages: function () {
     return _messages;
   },
@@ -104809,16 +104779,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
     this.emit(CHANGE_EVENT);
   },
 
-  /**
-   * @param {function} callback
-   */
   addChangeListener: function (callback) {
     this.on(CHANGE_EVENT, callback);
   },
 
-  /**
-   * @param {function} callback
-   */
   removeChangeListener: function (callback) {
     this.removeListener(CHANGE_EVENT, callback);
   },
@@ -104878,9 +104842,7 @@ module.exports = QBStore;
 
 },{"../../../settings/account.js":710,"../../../settings/quickblox.js":711,"../constants/QBConstants":707,"../dispatcher/AppDispatcher.js":708,"bluebird":1,"events":214,"object-assign":258,"quickblox":274,"underscore":701}],710:[function(require,module,exports){
 var supportAccount = {
-  userId: 10547143,
-  name: 'shu',
-  password: '12345678'
+  userId: 10547143
 };
 
 module.exports = supportAccount;

@@ -1,82 +1,109 @@
 .quickblox-chat {
   width: 40vw;
-
 }
 
-.chat-display {
+.quickblox-chat input[type="text"],
+.quickblox-chat input[type="password"],
+.quickblox-chat select,
+.quickblox-chat textarea {
+	box-sizing: content-box;
+	border: 1px solid #CCCCCC;
+	border-radius: 5px;
+	box-shadow: 1px 1px 1px #DEDEDE inset;
+  padding: 5px;
+  width: 100%;
+  background: #F5F5F5;
+  margin: 8px auto;
+}
+.quickblox-chat input[type="text"]:focus,
+.quickblox-chat input[type="password"]:focus,
+.quickblox-chat select:focus,
+.quickblox-chat textarea:focus {
+  background: #FBFBFB;
+}
+
+.quickblox-chat .chat-display {
   height: 500px;
   overflow-y: scroll;
 }
 
-.chat-form {
+.quickblox-chat .chat-form {
   background-color: rgb(184, 184, 184);
   height: auto;
   display: none;
   padding: 20px 20px 0 20px;
 }
 
-.btn {
+.quickblox-chat .btn {
   background-color: #9dcb2c;
   display: inline-block;
   border-radius: 5px;
   padding: 10px 15px;
+  font-size: 20px;
 }
 
-.btn.dialog-btn {
+.quickblox-chat .btn.dialog-btn {
   background-color: #9d9d9d;
 }
 
-.btn.dialog-btn.selected {
+.quickblox-chat .btn.dialog-btn.selected {
   background-color: #ebed79;
 }
 
-.chat-input {
+.quickblox-chat .chat-input {
   /*height: 20px;*/
 }
 
-.new-options {
+.quickblox-chat .new-options {
   width: 50%;
   display: inline-block;
 }
 
-.uploaded-files {
+.quickblox-chat .uploaded-files {
   width: 50%;
   display: inline-block;
 }
 
-.message-input {
+.quickblox-chat .message-input {
   width: 100%;
 }
 
-.hidden {
+.quickblox-chat .hidden {
   display: none;
 }
-.shown {
+.quickblox-chat .shown {
   display: block;
 }
+.quickblox-chat .btn.shown {
+  display: inline-block;
+}
 
-.message {
+.quickblox-chat .message {
   width: 80%;
   padding: 20px;
   border-radius: 10px;
   margin: 10px 0;
 }
 
-.message.customer {
+.quickblox-chat .message.customer {
   background-color: #82e728;
   float: right;
 }
 
-.message.admin {
+.quickblox-chat .message.admin {
   background-color: #e9e9e9;
   float: left;
 }
 
-.clear {
+.quickblox-chat .clear {
   clear: both;
 }
 
-.error-message {
+.quickblox-chat .error-message {
   font-weight: bold;
   color: #e04c4c;
+}
+
+.quickblox-chat .align-right {
+  text-align: right;
 }

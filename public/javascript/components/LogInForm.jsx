@@ -61,7 +61,7 @@ var LogInForm = React.createClass({
       <div>
         <h3>{title}</h3>
 
-        <input type="name" onChange={this.onNameChange} placeholder="user name"></input>
+        <input type="text" onChange={this.onNameChange} placeholder="user name"></input>
         <span className="error-message">{QBStore.getLoginErrors().username}</span>
         <br></br>
 

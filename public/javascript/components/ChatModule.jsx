@@ -5,9 +5,6 @@ var QBStore = require('../stores/QBStore');
 var LogInForm = require('./LogInForm.jsx');
 var ChatList = require('./ChatList.jsx');
 
-// TODO: select response
-// TODO: retrieve past messages
-
 var ChatModule = React.createClass({
   getInitialState: function () {
     return {
@@ -45,7 +42,6 @@ var ChatModule = React.createClass({
 
   sendMessage: function () {
     QBActions.sendMessage(this.state.newMessage, this.state.newOptions);
-    console.log(this.state.newOptions);
     this.setState({
       newMessage: '',
       isOptionInput: false,
@@ -67,7 +63,6 @@ var ChatModule = React.createClass({
     // OK, add this to options
     var options = this.state.newOptions;
     options.push(this.state.newOption.trim());
-    console.log(options);
     this.setState({newOption: '', newOptions: options, isOptionInput: false});
   },
 
@@ -115,6 +110,11 @@ var ChatModule = React.createClass({
         });
       }
 
+      setTimeout(function () {
+        var chatDisplay = $('.chat-display');
+        chatDisplay.scrollTop(chatDisplay.prop("scrollHeight"));
+      }, 100);
+
       return (
         <div className={ className }>
           {messageObj.message}
@@ -134,9 +134,9 @@ var ChatModule = React.createClass({
 
     return (
       <div className="quickblox-chat">
-        <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
         <button className="btn" onClick={this.toggleForm} >{chatNowText}</button>
         <div className={chatClass + ' chat-form'}>
+          <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
           <ChatList />
           <div className="chat-display">
             {messages}
@@ -150,12 +150,14 @@ var ChatModule = React.createClass({
               {newOptions}
             </div>
             <div className="uploaded-files">
-              <input type="file" onChange={this.sendFile}></input>
+              <input type="file" className="" onChange={this.sendFile}></input>
               {files}
             </div>
             <textarea className="message-input" name="message" onChange={this.onChangeMessage} value={state.newMessage} placeholder="type message here"></textarea>
             <br></br>
-            <input type="button" className="btn" onClick={this.sendMessage} value="send"></input>
+            <div className="align-right">
+              <input type="button" className="btn" onClick={this.sendMessage} value="send"></input>
+            </div>
           </div>
 
         </div>
@@ -167,7 +169,6 @@ var ChatModule = React.createClass({
   },
 
   _onChange: function () {
-    console.log(QBStore.getMessages());
     this.setState({
       currentUser: QBStore.getUser()
     });

@@ -104348,6 +104348,7 @@ module.exports = ChatModule;
 
 },{"../actions/QBActions.js":702,"../stores/QBStore":709,"./ChatList.jsx":704,"./LogInForm.jsx":706,"react":700,"underscore":701}],706:[function(require,module,exports){
 var React = require('react');
+var QBStore = require('../stores/QBStore');
 var QBActions = require('../actions/QBActions.js');
 
 var LogInForm = React.createClass({
@@ -104355,8 +104356,8 @@ var LogInForm = React.createClass({
 
   getInitialState: function () {
     return {
-      errorMsg: '',
-      hasAccount: false
+      hasAccount: false,
+      confirmError: ''
     };
   },
 
@@ -104367,14 +104368,16 @@ var LogInForm = React.createClass({
     if (this.state.hasAccount) {
       // sign in
       QBActions.signIn(this.state.name, this.state.password);
+      this.setState({ confirmError: '' });
       return;
     }
     // sign up
-    // passwordConfirm
+    // check passwordConfirm
     if (this.state.password !== this.state.passwordConfirm) {
-      this.setState({ errorMsg: 'password does not match.' });
+      this.setState({ confirmError: 'password does not match.' });
       return;
     }
+    this.setState({ confirmError: '' });
     QBActions.signUp(this.state.name, this.state.password);
   },
 
@@ -104412,16 +104415,27 @@ var LogInForm = React.createClass({
         title
       ),
       React.createElement('input', { type: 'name', onChange: this.onNameChange, placeholder: 'user name' }),
+      React.createElement(
+        'span',
+        { className: 'error-message' },
+        QBStore.getLoginErrors().username
+      ),
       React.createElement('br', null),
       React.createElement('input', { type: 'password', onChange: this.onPassChange, placeholder: 'password' }),
+      React.createElement(
+        'span',
+        { className: 'error-message' },
+        QBStore.getLoginErrors().password
+      ),
       React.createElement('br', null),
       passwordConfirm,
       React.createElement(
-        'p',
-        null,
-        this.state.errorMsg
+        'span',
+        { className: 'error-message' },
+        this.state.confirmError
       ),
-      React.createElement('input', { type: 'submit', onClick: this.submit, value: submitText }),
+      React.createElement('br', null),
+      React.createElement('input', { type: 'submit', onClick: this.submit, value: submitText, className: 'btn' }),
       React.createElement(
         'p',
         null,
@@ -104437,7 +104451,7 @@ var LogInForm = React.createClass({
 
 module.exports = LogInForm;
 
-},{"../actions/QBActions.js":702,"react":700}],707:[function(require,module,exports){
+},{"../actions/QBActions.js":702,"../stores/QBStore":709,"react":700}],707:[function(require,module,exports){
 var keyMirror = require('keymirror');
 
 module.exports = keyMirror({
@@ -104489,6 +104503,7 @@ var _opponentId = supportAccount.userId; // FIXME hide admin info into server si
 var _adminId = supportAccount.userId;
 var _dialogs = [];
 var _sessionToken = '';
+var _loginErrors = '';
 
 QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
 QB.createSession(function (err, res) {
@@ -104511,7 +104526,8 @@ function signUp(name, password) {
       if (!user) {
         // error
         console.error(err);
-        reject(err);
+        _loginErrors = parseError(err);
+        reject('signup');
         return;
       }
       // success
@@ -104544,7 +104560,8 @@ function signIn(name, password) {
       if (!res) {
         // error
         console.error(err);
-        reject(err);
+        _loginErrors = { password: 'user name or password is wrong.' };
+        reject('login');
         return;
       }
       // success
@@ -104734,6 +104751,27 @@ function switchDialog(dialogId) {
   });
 }
 
+/**
+* @param {object} error response from QB
+* @return {array} error messages which users can understand
+*/
+function parseError(err) {
+  var result = {};
+  detail = JSON.parse(err.detail);
+  _.each(detail.errors, function (reasons, field) {
+    // fix field name
+    if (field === 'login') {
+      field = 'username';
+    }
+    // concat error messages
+    result[field] = _.reduce(reasons, function (memo, reason) {
+      return memo + field + ' ' + reason + '. ';
+    }, ' ');
+  });
+
+  return result;
+}
+
 var QBStore = assign({}, EventEmitter.prototype, {
 
   /**
@@ -104758,6 +104796,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
 
   getSessionToken: function () {
     return _sessionToken;
+  },
+
+  getLoginErrors: function () {
+    return _loginErrors;
   },
 
   emitChange: function () {
@@ -104785,12 +104827,18 @@ var QBStore = assign({}, EventEmitter.prototype, {
       case QBConstants.SIGN_UP:
         signUp(action.name, action.password).then(function () {
           QBStore.emitChange();
+        }).catch(function (err) {
+          QBStore.emitChange();
+          throw err;
         });
         break;
 
       case QBConstants.SIGN_IN:
         signIn(action.name, action.password).then(function () {
           QBStore.emitChange();
+        }).catch(function (err) {
+          QBStore.emitChange();
+          throw err;
         });
         break;
 

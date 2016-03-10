@@ -104499,7 +104499,7 @@ var CHANGE_EVENT = 'change';
 var _user = null;
 var _uploadedFiles = [];
 var _messages = [];
-var _opponentId = supportAccount.userId; // FIXME hide admin info into server side
+var _opponentId = supportAccount.userId;
 var _adminId = supportAccount.userId;
 var _dialogs = [];
 var _sessionToken = '';
@@ -104602,7 +104602,7 @@ function signOut() {
       _user = null;
       _uploadedFiles = [];
       _messages = [];
-      _opponentId = supportAccount.userId; // FIXME hide admin info into server side
+      _opponentId = supportAccount.userId;
       _dialogs = [];
       _sessionToken = '';
 
@@ -104718,8 +104718,9 @@ function retrieveDialogs() {
         switchDialog(_dialogs[0]._id).then(function () {
           resolve(resDialogs);
         });
+      } else {
+        resolve(resDialogs);
       }
-      resolve(resDialogs);
     });
   });
 }
@@ -104743,7 +104744,9 @@ function switchDialog(dialogId) {
         return dialog._id === dialogId;
       });
       console.log(_dialogs, dialogId, selectedDialog);
-      _opponentId = selectedDialog.user_id;
+      _opponentId = _.find(selectedDialog.occupants_ids, function (userId) {
+        return userId !== _user;
+      });
       console.log('_opponentId', _opponentId);
 
       resolve(messages);

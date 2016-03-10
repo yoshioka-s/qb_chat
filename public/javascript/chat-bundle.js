@@ -104072,7 +104072,7 @@ var ChatModule = require('./components/ChatModule.jsx');
 ReactDOM.render(React.createElement(
   'div',
   null,
-  React.createElement(ChatModule, null)
+  React.createElement(ChatModule, { adminId: '10547143' })
 ), document.getElementById('chat-module'));
 
 },{"./components/ChatModule.jsx":705,"react":700,"react-dom":544}],704:[function(require,module,exports){
@@ -104136,6 +104136,10 @@ var ChatList = require('./ChatList.jsx');
 
 var ChatModule = React.createClass({
   displayName: 'ChatModule',
+
+  propTypes: {
+    adminId: React.PropTypes.number.isRequired
+  },
 
   getInitialState: function () {
     return {
@@ -104611,7 +104615,9 @@ function signOut() {
 * @return {array} messages
 */
 function onMessage(userId, message) {
-  _messages.push({ sender_id: userId, message: message.body, attachments: message.extension.attachments });
+  if (userId === _opponentId) {
+    _messages.push({ sender_id: userId, message: message.body, attachments: message.extension.attachments });
+  }
   retrieveDialogs().then(function (dialogs) {
     QBStore.emitChange();
   });

@@ -6,6 +6,10 @@ var LogInForm = require('./LogInForm.jsx');
 var ChatList = require('./ChatList.jsx');
 
 var ChatModule = React.createClass({
+  propTypes: {
+    adminId: React.PropTypes.number.isRequired
+  },
+
   getInitialState: function () {
     return {
       isFormShown: false,

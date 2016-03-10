@@ -125,7 +125,9 @@ function signOut() {
 * @return {array} messages
 */
 function onMessage(userId, message) {
-  _messages.push({sender_id: userId, message: message.body, attachments: message.extension.attachments});
+  if (userId === _opponentId) {
+    _messages.push({sender_id: userId, message: message.body, attachments: message.extension.attachments});
+  }
   retrieveDialogs()
   .then(function (dialogs) {
     QBStore.emitChange();

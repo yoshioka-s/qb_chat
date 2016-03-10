@@ -1,11 +1,12 @@
 var React = require('react');
+var QBStore = require('../stores/QBStore');
 var QBActions = require('../actions/QBActions.js');
 
 var LogInForm = React.createClass({
   getInitialState: function () {
     return {
-      errorMsg: '',
-      hasAccount: false
+      hasAccount: false,
+      confirmError: ''
     };
   },
 
@@ -16,14 +17,16 @@ var LogInForm = React.createClass({
     if (this.state.hasAccount) {
       // sign in
       QBActions.signIn(this.state.name, this.state.password);
-      return
-    }
-    // sign up
-    // passwordConfirm
-    if (this.state.password !== this.state.passwordConfirm) {
-      this.setState({errorMsg: 'password does not match.'});
+      this.setState({confirmError: ''});
       return;
     }
+    // sign up
+    // check passwordConfirm
+    if (this.state.password !== this.state.passwordConfirm) {
+      this.setState({confirmError: 'password does not match.'});
+      return;
+    }
+    this.setState({confirmError: ''});
     QBActions.signUp(this.state.name, this.state.password);
   },
 
@@ -57,11 +60,20 @@ var LogInForm = React.createClass({
     return (
       <div>
         <h3>{title}</h3>
-        <input type="name" onChange={this.onNameChange} placeholder="user name"></input><br></br>
-        <input type="password" onChange={this.onPassChange} placeholder="password"></input><br></br>
+
+        <input type="name" onChange={this.onNameChange} placeholder="user name"></input>
+        <span className="error-message">{QBStore.getLoginErrors().username}</span>
+        <br></br>
+
+        <input type="password" onChange={this.onPassChange} placeholder="password"></input>
+        <span className="error-message">{QBStore.getLoginErrors().password}</span>
+        <br></br>
+
         {passwordConfirm}
-        <p>{this.state.errorMsg}</p>
-        <input type="submit" onClick={this.submit} value={submitText}></input>
+        <span className="error-message">{this.state.confirmError}</span>
+        <br></br>
+
+        <input type="submit" onClick={this.submit} value={submitText} className="btn"></input>
 
         <p><a href="#" onClick={this.toggleMode}>{toggleText}</a></p>
       </div>

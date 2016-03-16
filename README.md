@@ -6,6 +6,10 @@ quickbloxを利用したチャット機能を実装するReactコンポーネン
 APIはNode/Expressで実装。
 パッケージ管理はnpm。
 
+## Settings
+カスタムクラスを作成
+https://admin.quickblox.com/apps/36754/service/custom?class_id=56e77ba1a0eb47b178000054
+
 ## Development
 
 ### Install

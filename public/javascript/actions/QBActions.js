@@ -59,6 +59,13 @@ var QBActions = {
       actionType: QBConstants.SWITCH,
       dialogId: dialogId
     });
+  },
+
+  setAdmin: function (adminIds) {
+    AppDispatcher.handleViewAction({
+      actionType: QBConstants.SET_ADMIN,
+      adminIds: adminIds
+    });
   }
 };
 

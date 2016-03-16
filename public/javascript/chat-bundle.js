@@ -104059,6 +104059,13 @@ var QBActions = {
       actionType: QBConstants.SWITCH,
       dialogId: dialogId
     });
+  },
+
+  setAdmin: function (adminIds) {
+    AppDispatcher.handleViewAction({
+      actionType: QBConstants.SET_ADMIN,
+      adminIds: adminIds
+    });
   }
 };
 
@@ -104072,7 +104079,7 @@ var ChatModule = require('./components/ChatModule.jsx');
 ReactDOM.render(React.createElement(
   'div',
   null,
-  React.createElement(ChatModule, { adminId: '10547143' })
+  React.createElement(ChatModule, { adminIds: [10547143, 10804193] })
 ), document.getElementById('chat-module'));
 
 },{"./components/ChatModule.jsx":705,"react":700,"react-dom":544}],704:[function(require,module,exports){
@@ -104138,7 +104145,7 @@ var ChatModule = React.createClass({
   displayName: 'ChatModule',
 
   propTypes: {
-    adminId: React.PropTypes.number.isRequired
+    adminIds: React.PropTypes.array.isRequired
   },
 
   getInitialState: function () {
@@ -104150,6 +104157,11 @@ var ChatModule = React.createClass({
       newOptions: [],
       newOption: ''
     };
+  },
+
+  componentWillMount: function () {
+    console.log(this.props.adminIds);
+    QBActions.setAdmin(this.props.adminIds);
   },
 
   componentDidMount: function () {
@@ -104468,7 +104480,8 @@ module.exports = keyMirror({
   OPEN: null,
   SEND: null,
   UPLOAD: null,
-  SWITCH: null
+  SWITCH: null,
+  SET_ADMIN: null
 });
 
 },{"keymirror":257}],708:[function(require,module,exports){
@@ -104499,15 +104512,14 @@ var Promise = require('bluebird').Promise;
 var _ = require('underscore');
 var QB = require('quickblox');
 var CREDENTIALS = require('../../../settings/quickblox.js');
-var supportAccount = require('../../../settings/account.js');
 
 var CHANGE_EVENT = 'change';
 
 var _user = null;
 var _uploadedFiles = [];
 var _messages = [];
-var _opponentId = supportAccount.userId;
-var _adminId = supportAccount.userId;
+var _dialogId = null;
+var _adminIds = null;
 var _dialogs = [];
 var _sessionToken = '';
 var _loginErrors = '';
@@ -104520,6 +104532,11 @@ QB.createSession(function (err, res) {
   }
   _sessionToken = res.token;
 });
+
+function setAdmin(adminIds) {
+  _adminIds = adminIds;
+}
+
 /**
 * sign up a new user
 * @param {string} username
@@ -104537,17 +104554,13 @@ function signUp(name, password) {
         return;
       }
       // success
-      _user = user.id;
-      resolve(user);
-    });
-  }).then(function (user) {
-    QB.chat.connect({ userId: _user, password: password }, function (err, roster) {
-      if (err) {
-        console.error(err);
-        throw err;
-      }
-      sendMessage(name + ' signed up!');
-      QBStore.emitChange();
+      console.log('sign up!', user);
+      // sign in
+      signIn(name, password).then(function () {
+        return createDialog();
+      }).then(function () {
+        resolve();
+      });
     });
   });
 }
@@ -104569,17 +104582,15 @@ function signIn(name, password) {
         return;
       }
       // success
-      _user = res.id;
-      resolve(res);
-    });
-  }).then(function () {
-    QB.chat.connect({ userId: _user, password: password }, function (err, roster) {
-      if (err) {
-        console.error(err);
-        throw err;
-      }
-      return retrieveDialogs().then(function () {
-        QBStore.emitChange();
+      _user = res;
+      QB.chat.connect({ userId: _user.id, password: password }, function (err, roster) {
+        if (err) {
+          console.error(err);
+          throw err;
+        }
+        return retrieveDialogs().then(function () {
+          resolve();
+        });
       });
     });
   });
@@ -104602,7 +104613,7 @@ function signOut() {
       _user = null;
       _uploadedFiles = [];
       _messages = [];
-      _opponentId = supportAccount.userId;
+      _dialogId = null;
       _dialogs = [];
       _sessionToken = '';
 
@@ -104611,18 +104622,43 @@ function signOut() {
   });
 }
 
+QB.chat.onMessageListener = onMessage;
 /**
+* on message event
 * @return {array} messages
 */
 function onMessage(userId, message) {
-  if (userId === _opponentId) {
+  console.log(message);
+  // On notification of a new dialog
+  if (message.extension && message.extension.notification_type === '1') {
+    console.log('new dialog');
+  }
+  // On message from current opponent
+  if (message.dialog_id === _dialogId) {
+    console.log('message on current dialog');
+    // push to _messages to display in chat window
     _messages.push({ sender_id: userId, message: message.body, attachments: message.extension.attachments });
   }
   retrieveDialogs().then(function (dialogs) {
     QBStore.emitChange();
   });
 }
-QB.chat.onMessageListener = onMessage;
+
+function updateMainOperator(dialogId, operatorId) {
+  var updateParams = {
+    data: {
+      class_name: 'product_dialog',
+      main_operator: operatorId
+    }
+  };
+  QB.chat.dialog.update(dialogId, updateParams, function (err, res) {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log(res);
+  });
+}
 
 /**
 * @param {string} message
@@ -104640,12 +104676,12 @@ function sendMessage(message, options) {
   }
 
   var data = {
-    type: 'chat',
+    type: 'groupchat',
     body: message,
     extension: extension
   };
   var messageObj = {
-    sender_id: _user,
+    sender_id: _user.id,
     message: message,
     attachments: extension.attachments
   };
@@ -104655,9 +104691,20 @@ function sendMessage(message, options) {
     messageObj['customParam' + i] = option;
     data.extension['customParam' + i] = option;
   });
-  QB.chat.send(_opponentId, data);
+  // send
+  console.log(_dialogId);
+  QB.chat.send(_dialogId, data);
   _messages.push(messageObj);
   _uploadedFiles = [];
+
+  var currentDialog = _.find(_dialogs, function (dialog) {
+    return dialog._id === _dialogId;
+  });
+  // if the dialog doesn't have main operator and currentUser is not operator
+  if (!currentDialog.data.main_operator && _adminIds.indexOf(_user.id)) {
+    // update main_operator
+    updateMainOperator(_dialogId, _user.id);
+  }
 }
 
 /**
@@ -104680,6 +104727,47 @@ function uploadFile(inputFile) {
 }
 
 /**
+* create new dialog with operators on user signUp
+* @return {Promise}
+*/
+function createDialog() {
+  return new Promise(function (resolve, reject) {
+    var params = {
+      type: 2,
+      occupants_ids: _adminIds,
+      name: _user.login,
+      user: _user.id,
+      data: {
+        class_name: 'product_dialog',
+        main_operator: 0
+      }
+    };
+    QB.chat.dialog.create(params, function (err, newDialog) {
+      if (err) {
+        console.error(err);
+        reject(err);
+        return;
+      }
+      console.log(newDialog);
+      _dialogs.push(newDialog);
+      _dialogId = newDialog._id;
+      // send notification to operators
+      var msg = {
+        type: 'chat',
+        extension: {
+          notification_type: 1,
+          _id: _dialogId
+        }
+      };
+      QB.chat.send(_dialogId, msg);
+      switchDialog(_dialogId).then(function () {
+        resolve();
+      });
+    });
+  });
+}
+
+/**
 * retrieve dialogs
 * @return {Promise}
 */
@@ -104691,6 +104779,7 @@ function retrieveDialogs() {
         reject(err);
         return;
       }
+      console.log(resDialogs);
       _dialogs = resDialogs.items;
       if (_dialogs.length === 1) {
         switchDialog(_dialogs[0]._id).then(function () {
@@ -104709,6 +104798,16 @@ function retrieveDialogs() {
 */
 function switchDialog(dialogId) {
   return new Promise(function (resolve, reject) {
+    // QB.chat.muc.join(dialogId, function(resultStanza) {
+    //   console.log(resultStanza);
+    //   // console.log(err);
+    //   var joined = !_.any(resultStanza.childNodes, function (elItem) {
+    //     return elItem.tagName === 'error';
+    //   });
+    //   if (!joined) {
+    //     reject();
+    //     return;
+    //   }
     // get the list of dialogs
     var params = { chat_dialog_id: dialogId, sort_asc: 'date_sent', limit: 50, skip: 0 };
     QB.chat.message.list(params, function (err, messages) {
@@ -104723,15 +104822,12 @@ function switchDialog(dialogId) {
 
       _messages = messages.items;
 
-      var selectedDialog = _.find(_dialogs, function (dialog) {
-        return dialog._id === dialogId;
-      });
-      _opponentId = _.find(selectedDialog.occupants_ids, function (userId) {
-        return userId !== _user;
-      });
+      // change chatting dialog
+      _dialogId = dialogId;
 
       resolve(messages);
     });
+    // });
   });
 }
 
@@ -104837,6 +104933,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
           QBStore.emitChange();
         });
         break;
+
+      case QBConstants.SET_ADMIN:
+        setAdmin(action.adminIds);
+        break;
     }
 
     return true; // No errors. Needed by promise in Dispatcher.
@@ -104846,14 +104946,7 @@ var QBStore = assign({}, EventEmitter.prototype, {
 
 module.exports = QBStore;
 
-},{"../../../settings/account.js":710,"../../../settings/quickblox.js":711,"../constants/QBConstants":707,"../dispatcher/AppDispatcher.js":708,"bluebird":1,"events":214,"object-assign":258,"quickblox":274,"underscore":701}],710:[function(require,module,exports){
-var supportAccount = {
-  userId: 10547143
-};
-
-module.exports = supportAccount;
-
-},{}],711:[function(require,module,exports){
+},{"../../../settings/quickblox.js":710,"../constants/QBConstants":707,"../dispatcher/AppDispatcher.js":708,"bluebird":1,"events":214,"object-assign":258,"quickblox":274,"underscore":701}],710:[function(require,module,exports){
 var CREDENTIALS = {
   appId: 36754,
   authKey: '5pYq2r5kq-epyNx',

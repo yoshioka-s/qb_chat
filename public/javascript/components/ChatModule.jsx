@@ -7,7 +7,7 @@ var ChatList = require('./ChatList.jsx');
 
 var ChatModule = React.createClass({
   propTypes: {
-    adminId: React.PropTypes.number.isRequired
+    adminIds: React.PropTypes.array.isRequired
   },
 
   getInitialState: function () {
@@ -19,6 +19,11 @@ var ChatModule = React.createClass({
       newOptions: [],
       newOption: ''
     };
+  },
+
+  componentWillMount: function () {
+    console.log(this.props.adminIds);
+    QBActions.setAdmin(this.props.adminIds);
   },
 
   componentDidMount: function() {

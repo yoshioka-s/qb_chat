@@ -7,5 +7,6 @@ module.exports = keyMirror({
   OPEN:     null,
   SEND:     null,
   UPLOAD:   null,
-  SWITCH:   null
+  SWITCH:   null,
+  SET_ADMIN:null
 });

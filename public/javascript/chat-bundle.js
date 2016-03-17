@@ -104079,7 +104079,7 @@ var ChatModule = require('./components/ChatModule.jsx');
 ReactDOM.render(React.createElement(
   'div',
   null,
-  React.createElement(ChatModule, { adminIds: [10547143, 10804193] })
+  React.createElement(ChatModule, { adminIds: [10547143] })
 ), document.getElementById('chat-module'));
 
 },{"./components/ChatModule.jsx":705,"react":700,"react-dom":544}],704:[function(require,module,exports){
@@ -104519,6 +104519,7 @@ var _user = null;
 var _uploadedFiles = [];
 var _messages = [];
 var _dialogId = null;
+var _opponentId = null;
 var _adminIds = null;
 var _dialogs = [];
 var _sessionToken = '';
@@ -104632,6 +104633,7 @@ function onMessage(userId, message) {
   // On notification of a new dialog
   if (message.extension && message.extension.notification_type === '1') {
     console.log('new dialog');
+    // do not push to _messages
   }
   // On message from current opponent
   if (message.dialog_id === _dialogId) {
@@ -104641,22 +104643,6 @@ function onMessage(userId, message) {
   }
   retrieveDialogs().then(function (dialogs) {
     QBStore.emitChange();
-  });
-}
-
-function updateMainOperator(dialogId, operatorId) {
-  var updateParams = {
-    data: {
-      class_name: 'product_dialog',
-      main_operator: operatorId
-    }
-  };
-  QB.chat.dialog.update(dialogId, updateParams, function (err, res) {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log(res);
   });
 }
 
@@ -104676,14 +104662,9 @@ function sendMessage(message, options) {
   }
 
   var data = {
-    type: 'groupchat',
+    type: 'chat',
     body: message,
     extension: extension
-  };
-  var messageObj = {
-    sender_id: _user.id,
-    message: message,
-    attachments: extension.attachments
   };
 
   // options
@@ -104691,10 +104672,20 @@ function sendMessage(message, options) {
     messageObj['customParam' + i] = option;
     data.extension['customParam' + i] = option;
   });
+
   // send
   console.log(_dialogId);
-  QB.chat.send(_dialogId, data);
+  console.log(_opponentId);
+  QB.chat.send(_opponentId, data); // TODO send to group chat
+  // QB.chat.send(_dialogId, data);  // THIS DOES NOT WORK
+  // QB.chat.send(_adminIds[0], data); // THIS WORKS
+  var messageObj = {
+    sender_id: _user.id,
+    message: message,
+    attachments: extension.attachments
+  };
   _messages.push(messageObj);
+
   _uploadedFiles = [];
 
   var currentDialog = _.find(_dialogs, function (dialog) {
@@ -104742,28 +104733,33 @@ function createDialog() {
         main_operator: 0
       }
     };
-    QB.chat.dialog.create(params, function (err, newDialog) {
-      if (err) {
-        console.error(err);
-        reject(err);
-        return;
+    // TODO create group chat dialog
+    // QB.chat.dialog.create(params, function (err, newDialog) {
+    //   if (err) {
+    //     console.error(err);
+    //     reject(err);
+    //     return;
+    //   }
+    //   console.log(newDialog);
+    //   _dialogs.push(newDialog);
+    //   _dialogId = newDialog._id;
+    // send notification to operators
+    var msg = {
+      type: 'chat',
+      extension: {
+        save_to_history: 1,
+        notification_type: 1
+        // _id: _dialogId
       }
-      console.log(newDialog);
-      _dialogs.push(newDialog);
-      _dialogId = newDialog._id;
-      // send notification to operators
-      var msg = {
-        type: 'chat',
-        extension: {
-          notification_type: 1,
-          _id: _dialogId
-        }
-      };
-      QB.chat.send(_dialogId, msg);
-      switchDialog(_dialogId).then(function () {
-        resolve();
-      });
-    });
+    };
+    // TODO send to group chat
+    // QB.chat.send(_dialogId, msg);
+    QB.chat.send(_adminIds[0], msg);
+    // switchDialog(_dialogId)
+    // .then(function () {
+    resolve();
+    // });
+    // });
   });
 }
 
@@ -104798,16 +104794,6 @@ function retrieveDialogs() {
 */
 function switchDialog(dialogId) {
   return new Promise(function (resolve, reject) {
-    // QB.chat.muc.join(dialogId, function(resultStanza) {
-    //   console.log(resultStanza);
-    //   // console.log(err);
-    //   var joined = !_.any(resultStanza.childNodes, function (elItem) {
-    //     return elItem.tagName === 'error';
-    //   });
-    //   if (!joined) {
-    //     reject();
-    //     return;
-    //   }
     // get the list of dialogs
     var params = { chat_dialog_id: dialogId, sort_asc: 'date_sent', limit: 50, skip: 0 };
     QB.chat.message.list(params, function (err, messages) {
@@ -104820,14 +104806,45 @@ function switchDialog(dialogId) {
       // reset uploaded files
       _uploadedFiles = [];
 
-      _messages = messages.items;
+      // ignore sign up notification
+      _messages = _.filter(messages.items, function (item) {
+        return item.notification_type !== '1';
+      });
 
       // change chatting dialog
       _dialogId = dialogId;
 
+      // TODO remove this logic after enabling group chat
+      var currentDialog = _.find(_dialogs, function (dialog) {
+        return dialog._id === _dialogId;
+      });
+      _opponentId = _.find(currentDialog.occupants_ids, function (occupants_id) {
+        return occupants_id !== _user.id;
+      });
+
       resolve(messages);
     });
     // });
+  });
+}
+
+/**
+* update main operator attribute of a dialog
+* @return {array} messages
+*/
+function updateMainOperator(dialogId, operatorId) {
+  var updateParams = {
+    data: {
+      class_name: 'product_dialog',
+      main_operator: operatorId
+    }
+  };
+  QB.chat.dialog.update(dialogId, updateParams, function (err, res) {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    console.log(res);
   });
 }
 

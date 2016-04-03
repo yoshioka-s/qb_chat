@@ -11,7 +11,7 @@ Nodeサーバーはindex.htmlをサーブしているのみで、ロジックは
 1. [quickblox](https://www.google.com)アカウントを登録します。
 2. New Appボタンから新しいアプリを登録します。
 3. 作成したアプリのApplication ID、Authorization key、Authorization secretを/settings/quickblox.jsのappId、authKey、authSecretにそれぞれ設定します。
-4. 作成したアプリのCustomページにて、カスタムオブジェクトを設定します。AddボタンからAdd New Classを選択し、Class name: product_dialog, Field name: main_operator (integer)　と設定してCreate Classボタンをクリックしてください。
+4. 作成したアプリのCustomページにて、カスタムオブジェクトを設定します。AddボタンからAdd New Classを選択し、Class name: shop_dialog, Field name: main_operator (integer)　と設定してCreate Classボタンをクリックしてください。
 5. 作成したアプリのOverviewページのSettingsタブで、「Allow to retrieve a list of users」のチェックを付けてSaveボタンをクリックします。
 
 ### オペレーター用ユーザーの作成

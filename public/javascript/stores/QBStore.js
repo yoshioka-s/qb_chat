@@ -227,7 +227,7 @@ function createDialog() {
       name: _user.login,
       user: _user.id,
       data: {
-        class_name: 'product_dialog',
+        class_name: 'shop_dialog',
         main_operator: 0
       }
     };
@@ -273,7 +273,6 @@ function retrieveDialogs() {
         reject(err);
         return;
       }
-      console.log(resDialogs);
       _dialogs = resDialogs.items;
       if (_dialogs.length === 1) {
         switchDialog(_dialogs[0]._id)
@@ -335,7 +334,7 @@ function switchDialog(dialogId) {
 function updateMainOperator(dialogId, operatorId) {
   var updateParams = {
     data: {
-      class_name: 'product_dialog',
+      class_name: 'shop_dialog',
       main_operator: operatorId
     }
   };

@@ -1,13 +1,12 @@
 var AppDispatcher = require('../dispatcher/AppDispatcher.js');
 var QBConstants = require('../constants/QBConstants');
+var QBUtils = require('../utils/QBUtils');
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var Promise = require('bluebird').Promise;
 var _ = require('underscore');
-var QB = require('quickblox');
-var CREDENTIALS = require('../../../settings/quickblox.js');
 
-var CHANGE_EVENT = 'change';
+const CHANGE_EVENT = 'change';
 
 var _user =  null;
 var _uploadedFiles = [];
@@ -19,14 +18,6 @@ var _dialogs = [];
 var _sessionToken = '';
 var _loginErrors = '';
 
-QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
-QB.createSession(function (err, res) {
-  if (err) {
-    console.error(err);
-    return;
-  }
-  _sessionToken = res.token;
-});
 
 function setAdmin(adminIds) {
   _adminIds = adminIds;
@@ -39,26 +30,21 @@ function setAdmin(adminIds) {
 * @return {Promise}
 */
 function signUp(name, password) {
-  return new Promise(function (resolve, reject) {
-    QB.users.create({login: name, password: password}, function(err, user){
-      if (!user) {
-        // error
-        console.error(err);
-        _loginErrors = parseError(err);
-        reject('signup');
-        return;
-      }
-      // success
-      console.log('sign up!', user);
-      // sign in
-      signIn(name, password)
-      .then(function () {
-        return createDialog();
-      })
-      .then(function () {
-        resolve();
-      });
-    });
+  _loginErrors = {};
+  return QBUtils.signUp(name, password)
+  .catch(function (error) {
+    _loginErrors = error;
+    throw error;
+  })
+  .then(function (user) {
+    _user = user;
+    console.log(user);
+    return QBUtils.createDialog(user.login, _adminIds);
+  })
+  .then(function (newDialog) {
+    _dialogs.push(newDialog);
+    _dialogId = newDialog.dialogId;
+    return retrieveDialogs();
   });
 }
 
@@ -69,28 +55,16 @@ function signUp(name, password) {
 * @return {Promise}
 */
 function signIn(name, password) {
-  return new Promise(function (resolve, reject) {
-    QB.login({login: name, password: password}, function(err, res){
-      if (!res) {
-        // error
-        console.error(err);
-        _loginErrors = {password: 'user name or password is wrong.'};
-        reject('login');
-        return;
-      }
-      // success
-      _user = res;
-      QB.chat.connect({userId: _user.id, password: password}, function(err, roster) {
-        if (err) {
-          console.error(err);
-          throw err;
-        }
-        return retrieveDialogs()
-        .then(function () {
-          resolve();
-        });
-      });
-    });
+  _loginErrors = {};
+  return QBUtils.signIn(name, password)
+  .then(function (user) {
+    console.log('test ok');
+    _user = user;
+    return retrieveDialogs();
+  })
+  .catch(function (error) {
+    _loginErrors = error;
+    throw error;
   });
 }
 
@@ -99,28 +73,17 @@ function signIn(name, password) {
 * @return {Promise}
 */
 function signOut() {
-  return new Promise(function (resolve, reject) {
-    QB.logout(function(err, result){
-      if (err) {
-        // error
-        console.error(err);
-        reject(err);
-        return;
-      }
-      // success
-      _user =  null;
-      _uploadedFiles = [];
-      _messages = [];
-      _dialogId = null;
-      _dialogs = [];
-      _sessionToken = '';
-
-      resolve(result);
-    });
+  return QBUtils.signOut()
+  .then(function () {
+    _user =  null;
+    _uploadedFiles = [];
+    _messages = [];
+    _dialogId = null;
+    _dialogs = [];
+    _sessionToken = '';
   });
 }
 
-QB.chat.onMessageListener = onMessage;
 /**
 * on message event
 * @return {array} messages
@@ -130,12 +93,13 @@ function onMessage(userId, message) {
   // On notification of a new dialog
   if (message.extension && message.extension.notification_type === '1') {
     console.log('new dialog');
+    QBUtils.joinDialog(message.extension._id);
     // do not push to _messages
   }
   // On message from current opponent
   if (message.dialog_id === _dialogId) {
     console.log('message on current dialog');
-    // push to _messages to display in chat window
+    // push to _messages so the message is displayed in chat window
     _messages.push({sender_id: userId, message: message.body, attachments: message.extension.attachments});
   }
   retrieveDialogs()
@@ -144,43 +108,21 @@ function onMessage(userId, message) {
   });
 }
 
+QBUtils.setMessageListener(onMessage);
+
 /**
 * @param {string} message
 */
 function sendMessage(message, options) {
-  var extension = {
-    save_to_history: 1
-  };
+  var isMessgeSent = QBUtils.sendMessage(message, _dialogId, options, _uploadedFiles);
+  console.log('message sent: ', isMessgeSent);
 
-  // file attaching
-  if (_uploadedFiles.length > 0) {
-    extension.attachments = _uploadedFiles.map(function (file) {
-      return {id: file.id, type: file.content_type, name: file.name};
-    });
-  }
-
-  var data = {
-    type: 'chat',
-    body: message,
-    extension: extension
-  };
-
-  // options
-  _.each(options, function (option, i) {
-    messageObj['customParam'+i] = option;
-    data.extension['customParam'+i] = option;
-  });
-
-  // send
-  console.log(_dialogId);
-  console.log(_opponentId);
-  QB.chat.send(_opponentId, data); // TODO send to group chat
-  // QB.chat.send(_dialogId, data);  // THIS DOES NOT WORK
-  // QB.chat.send(_adminIds[0], data); // THIS WORKS
   var messageObj = {
     sender_id: _user.id,
     message: message,
-    attachments: extension.attachments
+    attachments: _.map(_uploadedFiles, function (file) {
+      return {id: file.id, type: file.content_type, name: file.name};
+    })
   };
   _messages.push(messageObj);
 
@@ -189,11 +131,11 @@ function sendMessage(message, options) {
   var currentDialog = _.find(_dialogs, function (dialog) {
     return dialog._id === _dialogId;
   });
-  // if the dialog doesn't have main operator and currentUser is not operator
-  if (!currentDialog.data.main_operator && _adminIds.indexOf(_user.id)) {
-    // update main_operator
-    updateMainOperator(_dialogId, _user.id);
-  }
+  // TODO: if the dialog doesn't have main operator and currentUser is not operator
+  // if (!currentDialog.data.main_operator && _adminIds.indexOf(_user.id)) {
+  //   // update main_operator
+  //   updateMainOperator(_dialogId, _user.id);
+  // }
 }
 
 /**
@@ -201,63 +143,10 @@ function sendMessage(message, options) {
 * @return {Promise}
 */
 function uploadFile(inputFile) {
-  return new Promise(function (resolve, reject) {
-    var params = {name: inputFile.name, file: inputFile, type: inputFile.type, size: inputFile.size, 'public': false};
-    QB.content.createAndUpload(params, function (err, response) {
-      if (err) {
-        console.error(err);
-        reject(err);
-        return;
-      }
-      _uploadedFiles.push(response);
-      resolve(response);
-    });
-  });
-}
-
-/**
-* create new dialog with operators on user signUp
-* @return {Promise}
-*/
-function createDialog() {
-  return new Promise(function (resolve, reject) {
-    var params = {
-      type: 2,
-      occupants_ids: _adminIds,
-      name: _user.login,
-      user: _user.id,
-      data: {
-        class_name: 'shop_dialog',
-        main_operator: 0
-      }
-    };
-    // TODO create group chat dialog
-    // QB.chat.dialog.create(params, function (err, newDialog) {
-    //   if (err) {
-    //     console.error(err);
-    //     reject(err);
-    //     return;
-    //   }
-    //   console.log(newDialog);
-    //   _dialogs.push(newDialog);
-    //   _dialogId = newDialog._id;
-      // send notification to operators
-      var msg = {
-        type: 'chat',
-        extension: {
-          save_to_history: 1,
-          notification_type: 1
-          // _id: _dialogId
-        }
-      };
-      // TODO send to group chat
-      // QB.chat.send(_dialogId, msg);
-      QB.chat.send(_adminIds[0], msg);
-      // switchDialog(_dialogId)
-      // .then(function () {
-        resolve();
-      // });
-    // });
+  return QBUtils.uploadFile(inputFile)
+  .then(function (uploadedFile) {
+    _uploadedFiles.push(uploadedFile);
+    return uploadedFile;
   });
 }
 
@@ -266,64 +155,37 @@ function createDialog() {
 * @return {Promise}
 */
 function retrieveDialogs() {
-  return new Promise(function (resolve, reject) {
-    QB.chat.dialog.list(null, function(err, resDialogs) {
-      if (err) {
-        console.error(err);
-        reject(err);
-        return;
-      }
-      _dialogs = resDialogs.items;
-      if (_dialogs.length === 1) {
-        switchDialog(_dialogs[0]._id)
-        .then(function () {
-          resolve(resDialogs);
-        });
-      } else {
-        resolve(resDialogs);
-      }
+  var promise = QBUtils.retrieveDialogs();
+  return promise
+  .then(function (resDialogs) {
+    _dialogs = resDialogs.items;
+    // if currentUser is operator, show list of dialogs
+    if (_dialogs.length > 1) {
+      return resDialogs;
+    }
+    // if currentUser is customer, automatically select a dialog
+    return switchDialog(_dialogs[0]._id)
+    .then(function () {
+      return resDialogs;
     });
   });
 }
 
 /**
-* set customer
+* change showing dialog
 * @return {Promise}
 */
 function switchDialog(dialogId) {
-  return new Promise(function (resolve, reject) {
-      // get the list of dialogs
-      var params = {chat_dialog_id: dialogId, sort_asc: 'date_sent', limit: 50, skip: 0};
-      QB.chat.message.list(params, function(err, messages) {
-        if (err) {
-          console.error(err);
-          reject(err);
-          return;
-        }
-
-        // reset uploaded files
-        _uploadedFiles = [];
-
-        // ignore sign up notification
-        _messages = _.filter(messages.items, function (item) {
-          return item.notification_type !== '1';
-        });
-
-        // change chatting dialog
-        _dialogId = dialogId;
-
-        // TODO remove this logic after enabling group chat
-        var currentDialog = _.find(_dialogs, function (dialog) {
-          return dialog._id === _dialogId;
-        });
-        _opponentId = _.find(currentDialog.occupants_ids, function (occupants_id) {
-          return occupants_id !== _user.id;
-        });
-
-        resolve(messages);
-      });
-    // });
-
+  return QBUtils.retrieveDialogMessages(dialogId)
+  .then(function (messages) {
+    _dialogId = dialogId;
+    // reset uploaded files
+    _uploadedFiles = [];
+    // ignore sign up notification
+    _messages = _.filter(messages.items, function (item) {
+      return item.notification_type !== '1';
+    });
+    return messages;
   });
 }
 
@@ -345,27 +207,6 @@ function updateMainOperator(dialogId, operatorId) {
     }
     console.log(res);
   });
-}
-
-/**
-* @param {object} error response from QB
-* @return {array} error messages which users can understand
-*/
-function parseError(err) {
-  var result = {};
-  detail = JSON.parse(err.detail);
-  _.each(detail.errors, function (reasons, field) {
-    // fix field name
-    if (field === 'login') {
-      field = 'username';
-    }
-    // concat error messages
-    result[field] = _.reduce(reasons, function (memo, reason) {
-      return memo + field + ' ' + reason + '. ';
-    }, ' ');
-  });
-
-  return result;
 }
 
 var QBStore = assign({}, EventEmitter.prototype, {
@@ -427,7 +268,7 @@ var QBStore = assign({}, EventEmitter.prototype, {
         })
         .catch(function (err) {
           QBStore.emitChange();
-          throw err;
+          // throw err;
         });
         break;
 

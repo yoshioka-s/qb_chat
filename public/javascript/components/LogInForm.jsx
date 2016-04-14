@@ -5,7 +5,7 @@ var QBActions = require('../actions/QBActions.js');
 var LogInForm = React.createClass({
   getInitialState: function () {
     return {
-      hasAccount: false,
+      hasAccount: true,
       confirmError: ''
     };
   },

@@ -20,18 +20,19 @@
     "watchify": "~3.7.0"
   },
   "dependencies": {
-    "jquery": "~2.2.1",
+    "babel-preset-react": "~6.5.0",
+    "babelify": "~7.2.0",
     "bluebird": "~3.3.3",
     "body-parser": "~1.15.0",
+    "cookies-js": "^1.2.2",
     "express": "~4.13.4",
+    "flux": "~2.1.1",
+    "jquery": "~2.2.1",
+    "keymirror": "~0.1.1",
+    "object-assign": "~4.0.1",
     "quickblox": "~2.0.4",
     "react": "~0.14.7",
     "react-dom": "~0.14.7",
-    "babelify": "~7.2.0",
-    "babel-preset-react": "~6.5.0",
-    "keymirror": "~0.1.1",
-    "object-assign": "~4.0.1",
-    "flux": "~2.1.1",
     "underscore": "~1.8.3"
   }
 }

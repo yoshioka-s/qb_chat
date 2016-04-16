@@ -12,11 +12,11 @@ var _user =  null;
 var _uploadedFiles = [];
 var _messages = [];
 var _dialogId = null;
+var _currentDialog = null;
 var _opponentId = null;
 var _adminIds = null;
 var _dialogs = [];
-var _sessionToken = '';
-var _loginErrors = '';
+var _loginErrors = {username: '', password:''};
 
 
 function setAdmin(adminIds) {
@@ -38,7 +38,6 @@ function signUp(name, password) {
   })
   .then(function (user) {
     _user = user;
-    console.log(user);
     return QBUtils.createDialog(user.login, _adminIds);
   })
   .then(function (newDialog) {
@@ -80,7 +79,6 @@ function signOut() {
     _messages = [];
     _dialogId = null;
     _dialogs = [];
-    _sessionToken = '';
   });
 }
 
@@ -93,8 +91,7 @@ function onMessage(userId, message) {
   // On notification of a new dialog
   if (message.extension && message.extension.notification_type === '1') {
     console.log('new dialog');
-    QBUtils.joinDialog(message.extension._id);
-    // do not push to _messages
+    // do not add notification to _messages
   }
   // On message from current opponent
   if (message.dialog_id === _dialogId) {
@@ -112,9 +109,10 @@ QBUtils.setMessageListener(onMessage);
 
 /**
 * @param {string} message
+* @param {array} options for select (optional)
 */
 function sendMessage(message, options) {
-  var isMessgeSent = QBUtils.sendMessage(message, _dialogId, options, _uploadedFiles);
+  var isMessgeSent = QBUtils.sendMessage(message, _currentDialog.xmpp_room_jid, options, _uploadedFiles);
   console.log('message sent: ', isMessgeSent);
 
   var messageObj = {
@@ -128,10 +126,7 @@ function sendMessage(message, options) {
 
   _uploadedFiles = [];
 
-  var currentDialog = _.find(_dialogs, function (dialog) {
-    return dialog._id === _dialogId;
-  });
-  // TODO: if the dialog doesn't have main operator and currentUser is not operator
+  // TODO: set main operator if the dialog doesn't have main operator
   // if (!currentDialog.data.main_operator && _adminIds.indexOf(_user.id)) {
   //   // update main_operator
   //   updateMainOperator(_dialogId, _user.id);
@@ -140,6 +135,7 @@ function sendMessage(message, options) {
 
 /**
 * upload
+* @param {object} file object
 * @return {Promise}
 */
 function uploadFile(inputFile) {
@@ -155,19 +151,11 @@ function uploadFile(inputFile) {
 * @return {Promise}
 */
 function retrieveDialogs() {
-  var promise = QBUtils.retrieveDialogs();
-  return promise
+  return QBUtils.retrieveDialogs()
   .then(function (resDialogs) {
-    _dialogs = resDialogs.items;
-    // if currentUser is operator, show list of dialogs
-    if (_dialogs.length > 1) {
-      return resDialogs;
-    }
-    // if currentUser is customer, automatically select a dialog
-    return switchDialog(_dialogs[0]._id)
-    .then(function () {
-      return resDialogs;
-    });
+    _dialogs = resDialogs;
+    // show the list of dialogs
+    return resDialogs;
   });
 }
 
@@ -176,6 +164,10 @@ function retrieveDialogs() {
 * @return {Promise}
 */
 function switchDialog(dialogId) {
+  _currentDialog = _.find(_dialogs, function (dialog) {
+    return dialog._id === dialogId;
+  });
+  QBUtils.joinDialog(_currentDialog.xmpp_room_jid);
   return QBUtils.retrieveDialogMessages(dialogId)
   .then(function (messages) {
     _dialogId = dialogId;
@@ -194,19 +186,19 @@ function switchDialog(dialogId) {
 * @return {array} messages
 */
 function updateMainOperator(dialogId, operatorId) {
-  var updateParams = {
-    data: {
-      class_name: 'shop_dialog',
-      main_operator: operatorId
-    }
-  };
-  QB.chat.dialog.update(dialogId, updateParams, function(err, res) {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log(res);
-  });
+  // var updateParams = {
+  //   data: {
+  //     class_name: 'shop_dialog',
+  //     main_operator: operatorId
+  //   }
+  // };
+  // QB.chat.dialog.update(dialogId, updateParams, function(err, res) {
+  //   if (err) {
+  //     console.error(err);
+  //     return;
+  //   }
+  //   console.log(res);
+  // });
 }
 
 var QBStore = assign({}, EventEmitter.prototype, {
@@ -223,11 +215,8 @@ var QBStore = assign({}, EventEmitter.prototype, {
   },
 
   getDialogs: function () {
+    console.log(_dialogs);
     return _dialogs;
-  },
-
-  getSessionToken: function () {
-    return _sessionToken;
   },
 
   getLoginErrors: function () {
@@ -268,7 +257,6 @@ var QBStore = assign({}, EventEmitter.prototype, {
         })
         .catch(function (err) {
           QBStore.emitChange();
-          // throw err;
         });
         break;
 

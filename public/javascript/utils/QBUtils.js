@@ -1,5 +1,6 @@
 var Promise = require('bluebird').Promise;
 var _ = require('underscore');
+var Cookies = require('cookies-js')(window);
 var QB = require('quickblox');
 var CREDENTIALS = require('../../../settings/quickblox.js');
 
@@ -10,6 +11,27 @@ QB.createSession(function (err, res) {
     return;
   }
 });
+
+/**
+* sign up or login automatically
+* @return {Promise}
+*/
+function atuoLogin() {
+  var cokieName = 'QBName';
+  // check if username is stored in cookie
+  var username = Cookies.get(cokieName);
+  console.log('cookie username: ', username);
+  if (username) {
+    return signIn(username, username);
+  }
+  username = Cookies.get('sid');
+  return signUp(username, username)
+  .then(function (user) {
+    // save username in cookie
+    Cookies.set(cokieName, username);
+    return user;
+  });
+}
 
 /**
 * sign up a new user
@@ -27,7 +49,6 @@ function signUp(name, password) {
         return;
       }
       // success
-      // sign in
       signIn(name, password)
       .then(function () {
         resolve(user);
@@ -93,7 +114,7 @@ function setMessageListener(messageListener) {
 /**
 * @param {string} message
 * @param {string} to
-* @param {array} options (optional)
+* @param {array} options for select (optional)
 * @param {array} files (optional)
 */
 function sendMessage(message, to, options, files) {
@@ -120,18 +141,23 @@ function sendMessage(message, to, options, files) {
   });
 
   // send
-  return QB.chat.send(to, data); // TODO send to group chat
-  // QB.chat.send(_dialogId, data);  // THIS DOES NOT WORK
-  // QB.chat.send(_adminIds[0], data); // THIS WORKS
+  return QB.chat.send(to, data);
 }
 
 /**
 * upload
+* @param {object} file object
 * @return {Promise}
 */
 function uploadFile(inputFile) {
   return new Promise(function (resolve, reject) {
-    var params = {name: inputFile.name, file: inputFile, type: inputFile.type, size: inputFile.size, 'public': false};
+    var params = {
+      name: inputFile.name,
+      file: inputFile,
+      type: inputFile.type,
+      size: inputFile.size,
+      public: false
+    };
     QB.content.createAndUpload(params, function (err, uploadedFile) {
       if (err) {
         console.error(err);
@@ -168,14 +194,14 @@ function createDialog(name, occupantIds) {
         reject(err);
         return;
       }
-      console.log(newDialog);
       // send notification to occupants
       var msg = {
         type: 'chat',
         extension: {
           save_to_history: 1,
           notification_type: 1,  // new customer notification
-          _id: newDialog._id
+          _id: newDialog._id,
+          roomJid: newDialog.xmpp_room_jid
         }
       };
       // send to every occupants
@@ -186,7 +212,6 @@ function createDialog(name, occupantIds) {
       // join to the new dialog
       joinDialog(newDialog.xmpp_room_jid)
       .then(function (dialogId) {
-        console.log('joined', dialogId);
         resolve(newDialog);
       });
     });
@@ -195,17 +220,17 @@ function createDialog(name, occupantIds) {
 
 /**
 * join dialog
-* @param {number} id of the dialog
+* @param {string} roomJid of the dialog
 * @return {Promise}
 */
-function joinDialog(dialogId) {
+function joinDialog(roomJid) {
   return new Promise(function (resolve, reject) {
-    QB.chat.muc.join(dialogId, function(resultStanza) {
+    QB.chat.muc.join(roomJid, function(resultStanza) {
       var joined = _.every(resultStanza.childNodes, function (item) {
         return item.tagName !== 'error';
       });
       if (joined) {
-        sendMessage('created', dialogId);
+        sendMessage('created', roomJid);  // TODO remove this line
         resolve(dialogId);
       } else {
         reject();
@@ -215,20 +240,41 @@ function joinDialog(dialogId) {
 }
 
 /**
-* retrieve dialogs
+* retrieve dialogs (group chat only)
 * @return {Promise}
 */
 function retrieveDialogs() {
+  allDialogs = [];
+  var limit = 5;  // limit for 1 API request
+  var total;
   return new Promise(function (resolve, reject) {
-    QB.chat.dialog.list(null, function(err, resDialogs) {
-      if (err) {
-        console.error(err);
-        reject(err);
-        return;
-      }
-      console.log(resDialogs);
-      resolve(resDialogs);
-    });
+    // recursive function
+    function listDialogs(skip) {
+      var filters = {
+        type: 2,  // retrieve group chats only
+        sort_desc: 'created_at',
+        limit: limit,
+        skip: skip
+      };
+      QB.chat.dialog.list(filters, function(err, resDialogs) {
+        if (err) {
+          console.error(err);
+          reject(err);
+          return;
+        }
+        total = resDialogs.total_entries;
+        allDialogs = allDialogs.concat(resDialogs.items);
+        // recurse until all dialogs are retrieved
+        if (allDialogs.length < total) {
+          listDialogs(skip + limit);
+        } else {
+          // resolve when all dialogs are retrieved
+          resolve(allDialogs);
+        }
+      });
+    }
+    // invoke the recursive function
+    listDialogs(0);
   });
 }
 
@@ -247,15 +293,6 @@ function retrieveDialogMessages(dialogId) {
         reject(err);
         return;
       }
-
-      // TODO remove this logic after enabling group chat
-      // var currentDialog = _.find(_dialogs, function (dialog) {
-      //   return dialog._id === dialogId;
-      // });
-      // _opponentId = _.find(currentDialog.occupants_ids, function (occupants_id) {
-      //   return occupants_id !== _user.id;
-      // });
-
       resolve(messages);
     });
 
@@ -299,13 +336,21 @@ function parseError(err) {
       return memo + field + ' ' + reason + '. ';
     }, ' ');
   });
-
   return result;
+}
+
+/**
+* @param {object} error response from QB
+* @return {array} error messages which users can understand
+*/
+function sendWarning() {
+  // body...
 }
 
 module.exports = {
   signUp: signUp,
   signIn: signIn,
+  atuoLogin: atuoLogin,
   signOut: signOut,
   sendMessage: sendMessage,
   setMessageListener: setMessageListener,

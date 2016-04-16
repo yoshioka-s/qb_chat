@@ -1,12 +1,12 @@
 var React = require('react');
+var ReactPropTypes = React.PropTypes;
 var QBActions = require('../actions/QBActions.js');
-var QBStore = require('../stores/QBStore');
-
-// TODO: admin module
-// TODO: admin get list of chats
-
 
 var ChatList = React.createClass({
+  propTypes: {
+    dialogs: ReactPropTypes.array.isRequired
+  },
+
   getInitialState: function () {
     return {
       dialogId: null
@@ -21,11 +21,13 @@ var ChatList = React.createClass({
 
   render: function () {
     var chatList = this;
-    var dialogs = QBStore.getDialogs().map(function (dialog) {
+    var dialogs = this.props.dialogs.map(function (dialog) {
       var selectedClass = chatList.state.dialogId === dialog._id ? 'selected':'';
-      return (<div className={'btn dialog-btn '+selectedClass}
+      return (
+        <div className={'btn dialog-btn '+selectedClass}
           onClick={chatList.switchDialog}
           data-target={dialog._id}
+          key={dialog._id}
         >
           {dialog.name}
         </div>);
@@ -42,7 +44,5 @@ var ChatList = React.createClass({
   }
 
 });
-
-
 
 module.exports = ChatList;

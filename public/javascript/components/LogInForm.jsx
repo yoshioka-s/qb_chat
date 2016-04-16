@@ -1,8 +1,12 @@
 var React = require('react');
-var QBStore = require('../stores/QBStore');
+var ReactPropTypes = React.PropTypes;
 var QBActions = require('../actions/QBActions.js');
 
 var LogInForm = React.createClass({
+  propTypes: {
+    loginErrors: ReactPropTypes.object.isRequired
+  },
+
   getInitialState: function () {
     return {
       hasAccount: true,
@@ -62,11 +66,11 @@ var LogInForm = React.createClass({
         <h3>{title}</h3>
 
         <input type="text" onChange={this.onNameChange} placeholder="user name"></input>
-        <span className="error-message">{QBStore.getLoginErrors().username}</span>
+        <span className="error-message">{this.props.loginErrors.username}</span>
         <br></br>
 
         <input type="password" onChange={this.onPassChange} placeholder="password"></input>
-        <span className="error-message">{QBStore.getLoginErrors().password}</span>
+        <span className="error-message">{this.props.loginErrors.password}</span>
         <br></br>
 
         {passwordConfirm}

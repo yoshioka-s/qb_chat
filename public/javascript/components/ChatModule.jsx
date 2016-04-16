@@ -93,6 +93,7 @@ var ChatModule = React.createClass({
   render: function () {
     var chatModule = this;
     var state = this.state;
+    console.log(state.isFormShown, state.currentUser);
     var logInClass = state.isFormShown && !state.currentUser ? 'shown' : 'hidden';
     var chatClass = state.isFormShown && state.currentUser ? 'shown' : 'hidden';
     var chatNowText = state.isFormShown ? 'Hide Chat' : 'Chat Now';
@@ -146,7 +147,7 @@ var ChatModule = React.createClass({
         <button className="btn" onClick={this.toggleForm} >{chatNowText}</button>
         <div className={chatClass + ' chat-form'}>
           <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
-          <ChatList />
+          <ChatList dialogs={QBStore.getDialogs()}/>
           <div className="chat-display">
             {messages}
             <br className="clear"></br>
@@ -171,7 +172,7 @@ var ChatModule = React.createClass({
 
         </div>
         <div className={logInClass}>
-          <LogInForm />
+          <LogInForm loginErrors={QBStore.getLoginErrors()}/>
         </div>
       </div>
     );

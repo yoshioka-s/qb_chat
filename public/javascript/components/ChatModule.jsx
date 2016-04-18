@@ -100,14 +100,20 @@ var ChatModule = React.createClass({
 
     var messages = QBStore.getMessages().map(function (messageObj) {
       // each message view
-      var className = "message " + (messageObj.sender_id===state.currentUser ? 'admin' : 'customer');
+      console.log(messageObj);
+      var className = "message ";
+      if (messageObj.sender_id===state.currentUser) {
+        className += 'operator'
+      } else {
+        className += messageObj.notification_type == 3 ? 'server' : 'customer';
+      }
 
       var options = [];
       _.each(messageObj, function (value, key) {
         if (key.indexOf('customParam') === 0) {
           options.push(<p><input type="radio" name="option" onClick={chatModule.selectOption} value={value}></input>{value}</p>);
         }
-      })
+      });
 
       var attachments = [];
       if (messageObj.attachments&&messageObj.attachments.length > 0) {

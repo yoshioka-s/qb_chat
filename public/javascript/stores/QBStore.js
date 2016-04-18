@@ -42,6 +42,7 @@ function signUp(name, password) {
   })
   .then(function (newDialog) {
     _dialogs.push(newDialog);
+    _currentDialog = newDialog;
     _dialogId = newDialog.dialogId;
     return retrieveDialogs();
   });
@@ -88,16 +89,24 @@ function signOut() {
 */
 function onMessage(userId, message) {
   console.log(message);
-  // On notification of a new dialog
+  // notification of a new dialog
   if (message.extension && message.extension.notification_type === '1') {
     console.log('new dialog');
-    // do not add notification to _messages
   }
-  // On message from current opponent
-  if (message.dialog_id === _dialogId) {
+  // notification of warning dialog
+  else if (message.extension && message.extension.notification_type === '2') {
+    console.log('warning!', message);
+  }
+  // message from current opponent
+  else if (message.dialog_id === _dialogId) {
     console.log('message on current dialog');
     // push to _messages so the message is displayed in chat window
-    _messages.push({sender_id: userId, message: message.body, attachments: message.extension.attachments});
+    _messages.push({
+      sender_id: userId,
+      message: message.body,
+      attachments: message.extension.attachments,
+      notification_type: message.extension.notification_type
+    });
   }
   retrieveDialogs()
   .then(function (dialogs) {
@@ -122,7 +131,6 @@ function sendMessage(message, options) {
       return {id: file.id, type: file.content_type, name: file.name};
     })
   };
-  _messages.push(messageObj);
 
   _uploadedFiles = [];
 
@@ -174,7 +182,7 @@ function switchDialog(dialogId) {
     // reset uploaded files
     _uploadedFiles = [];
     // ignore sign up notification
-    _messages = _.filter(messages.items, function (item) {
+    _messages = _.map(messages.items, function (item) {
       return item.notification_type !== '1';
     });
     return messages;

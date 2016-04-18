@@ -32,9 +32,9 @@ var ChatList = React.createClass({
           {dialog.name}
         </div>);
     });
-    if (dialogs.length === 1) {
-      dialogs = [];
-    }
+    // if (dialogs.length === 1) {
+    //   dialogs = [];
+    // }
 
     return (
       <div className="quickblox-customer-list">

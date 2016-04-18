@@ -1,68 +1,83 @@
-var QB = require('quickblox');
-var CREDENTIALS = require('../../../settings/quickblox.js');
-
 /**
-* Util class for communiccation with Quickblox
-* @param {number} shopID
+* Util funstions for communication with Quickblox
 */
-class ChatUtils {
-  constructor(shopId) {
-    this._shopId = shopId;
-    QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret);
-    QB.createSession(function (err, res) {
-      if (err) {
-        console.error(err);
-        return;
-      }
-      // this._sessionToken = res.token;
+var QBUtils = require('./utils/QBUtils');
+var Cookies = require('cookies-js');
+var _ = require('underscore');
+
+var COOKIE_NAME = 'QBName';
+var MAX_USERNAME_LENGTH = 40;
+
+function createDialog(shopId) {
+  return QBUtils.getUsersByTags(shopId)
+  .then(function (operators) {
+    console.log(operators);
+    var operatorIds = _.map(operators, function (operator) {
+      return operator.id;
     });
-  }
-
-  /**
-  * log in or sign up to Quickblox
-  * @return {Promise} reject: error object, resolve: user ID
-  */
-  login() {
-    return new Promise(function (resolve, reject) {
-      QB.login({login: name, password: password}, function(err, user){
-        if (!res) {
-          // error
-          console.error(err);
-          _loginErrors = {password: 'user name or password is wrong.'};
-          reject(_loginErrors);
-          return;
-        }
-        // success
-        _user = user;
-        QB.chat.connect({userId: _user.id, password: password}, function(err, roster) {
-          if (err) {
-            console.error(err);
-            throw err;
-          }
-          return retrieveDialogs()
-          .then(function () {
-            resolve();
-          });
-        });
-      });
-    });
-  }
-
-  /**
-  * notify operators via Quickblox
-  * @param {number} shop ID
-  */
-  sendWarning (shopId) {
-
-  }
-
-  /**
-  * send message to operators via Quickblox
-  * @param {number} shop ID
-  */
-  sendMessage (shopId) {
-
-  }
+    var dialogName = shopId + Cookies.get(COOKIE_NAME);
+    return QBUtils.createDialog(dialogName, operatorIds);
+  });
 }
 
-window.ChatUtils = ChatUtils;
+// get the shop's dialog
+function getDialog(shopId) {
+  return QBUtils.retrieveDialogs()
+  .then(function (dialogs) {
+    var shopDialog = _.find(dialogs, function (dialog) {
+      // dialog name begins with shop ID
+      return dialog.name.indexOf(shopId) === 0;
+    });
+    if (shopDialog) {
+      return QBUtils.joinDialog(shopDialog.xmpp_room_jid)
+      .then(function () {
+        return shopDialog;
+      });
+    }
+    return createDialog(shopId);
+  });
+}
+
+window.ChatUtils = {
+  autoLogin: function () {
+    // check if username is stored in cookie
+    var username = Cookies.get(COOKIE_NAME);
+    console.log('cookie username: ', username);
+    if (username) {
+      return QBUtils.signIn(username, username);
+    }
+    username = Cookies.get('connect.sid').substring(0, MAX_USERNAME_LENGTH);
+    console.log('sid', username);
+    return QBUtils.signUp(username, username, 'customer')
+    .then(function (user) {
+      // save username in cookie
+      Cookies.set(COOKIE_NAME, username);
+      return user;
+    });
+  },
+
+  forwardMessages: function (shopId, serverMessage, customerMessage) {
+    return getDialog(shopId)
+    .then(function (dialog) {
+      QBUtils.sendMessage(serverMessage, dialog.xmpp_room_jid, null, null, 3);
+      QBUtils.sendMessage(customerMessage, dialog.xmpp_room_jid);
+    });
+
+  },
+
+  sendWarning: function (shopId) {
+    return QBUtils.getUsersByTags(shopId)
+    .then(function (operators) {
+      _.forEach(operators, function (operator) {
+        QBUtils.sendWarning(operator.id);
+      });
+    });
+  },
+
+  sendMessage: function (shopId, message) {
+    return getDialog(shopId)
+    .then(function (dialog) {
+      QBUtils.sendMessage(message, dialog.xmpp_room_jid);
+    });
+  }
+};

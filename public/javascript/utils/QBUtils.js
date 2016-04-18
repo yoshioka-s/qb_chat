@@ -1,8 +1,9 @@
 var Promise = require('bluebird').Promise;
 var _ = require('underscore');
-var Cookies = require('cookies-js')(window);
 var QB = require('quickblox');
 var CREDENTIALS = require('../../../settings/quickblox.js');
+
+const NOTIFICATIONS = {newDialog: 1, warning: 2};
 
 QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret, CREDENTIALS.config);
 QB.createSession(function (err, res) {
@@ -13,35 +14,22 @@ QB.createSession(function (err, res) {
 });
 
 /**
-* sign up or login automatically
-* @return {Promise}
-*/
-function atuoLogin() {
-  var cokieName = 'QBName';
-  // check if username is stored in cookie
-  var username = Cookies.get(cokieName);
-  console.log('cookie username: ', username);
-  if (username) {
-    return signIn(username, username);
-  }
-  username = Cookies.get('sid');
-  return signUp(username, username)
-  .then(function (user) {
-    // save username in cookie
-    Cookies.set(cokieName, username);
-    return user;
-  });
-}
-
-/**
 * sign up a new user
 * @param {string} username
 * @param {string} password
+* @param {array} tags for the user (optional)
 * @return {Promise}
 */
-function signUp(name, password) {
+function signUp(name, password, tags) {
+  if (!tags) {
+    tags = [];
+  }
   return new Promise(function (resolve, reject) {
-    QB.users.create({login: name, password: password}, function(err, user){
+    QB.users.create({
+      login: name,
+      password: password,
+      tag_list: tags
+    }, function(err, user){
       if (!user) {
         // error
         console.error(err);
@@ -104,78 +92,13 @@ function signOut() {
 }
 
 /**
-* set on message event listener
-* @param {function} callback on message event
-*/
-function setMessageListener(messageListener) {
-  QB.chat.onMessageListener = messageListener;
-}
-
-/**
-* @param {string} message
-* @param {string} to
-* @param {array} options for select (optional)
-* @param {array} files (optional)
-*/
-function sendMessage(message, to, options, files) {
-  console.log('sendMessage to: ', to);
-  var extension = {
-    save_to_history: 1
-  };
-
-  // file attaching
-  extension.attachments = _.map(files, function (file) {
-    return {id: file.id, type: file.content_type, name: file.name};
-  });
-
-  var data = {
-    type: 'groupchat',
-    body: message,
-    extension: extension
-  };
-
-  // options
-  _.each(options, function (option, i) {
-    messageObj['customParam'+i] = option;
-    data.extension['customParam'+i] = option;
-  });
-
-  // send
-  return QB.chat.send(to, data);
-}
-
-/**
-* upload
-* @param {object} file object
-* @return {Promise}
-*/
-function uploadFile(inputFile) {
-  return new Promise(function (resolve, reject) {
-    var params = {
-      name: inputFile.name,
-      file: inputFile,
-      type: inputFile.type,
-      size: inputFile.size,
-      public: false
-    };
-    QB.content.createAndUpload(params, function (err, uploadedFile) {
-      if (err) {
-        console.error(err);
-        reject(err);
-        return;
-      }
-      resolve(uploadedFile);
-    });
-  });
-}
-
-/**
 * create new dialog with operators on user signUp
 * @param {string} name of the dialog
 * @param {array} occupantIds
 * @return {Promise}
 */
 function createDialog(name, occupantIds) {
+  console.log('createDialog');
   return new Promise(function (resolve, reject) {
     var params = {
       type: 2,
@@ -183,7 +106,7 @@ function createDialog(name, occupantIds) {
       name: name,
       data: {
         class_name: 'shop_dialog',
-        shopId: self.shopId,
+        shopId: 'shopId',
         main_operator: 0
       }
     };
@@ -199,15 +122,16 @@ function createDialog(name, occupantIds) {
         type: 'chat',
         extension: {
           save_to_history: 1,
-          notification_type: 1,  // new customer notification
-          _id: newDialog._id,
+          notification_type: NOTIFICATIONS.newDialog,
           roomJid: newDialog.xmpp_room_jid
         }
       };
       // send to every occupants
       _.each(occupantIds, function (occupantId) {
+        console.log('send', occupantId, msg);
         QB.chat.send(occupantId, msg);
       });
+      console.log('sent');
 
       // join to the new dialog
       joinDialog(newDialog.xmpp_room_jid)
@@ -226,12 +150,13 @@ function createDialog(name, occupantIds) {
 function joinDialog(roomJid) {
   return new Promise(function (resolve, reject) {
     QB.chat.muc.join(roomJid, function(resultStanza) {
+      console.log('joined');
       var joined = _.every(resultStanza.childNodes, function (item) {
         return item.tagName !== 'error';
       });
       if (joined) {
-        sendMessage('created', roomJid);  // TODO remove this line
-        resolve(dialogId);
+        console.log('joined', roomJid);
+        resolve(roomJid);
       } else {
         reject();
       }
@@ -300,6 +225,95 @@ function retrieveDialogMessages(dialogId) {
 }
 
 /**
+* set on message event listener
+* @param {function} callback on message event
+*/
+function setMessageListener(messageListener) {
+  QB.chat.onMessageListener = messageListener;
+}
+
+/**
+* @param {string} message
+* @param {string} occupnat
+* @param {array} options for select (optional)
+* @param {array} files (optional)
+* @param {number} notificationType (optional)
+*/
+function sendMessage(message, to, options, files, notificationType) {
+  console.log('sendMessage to: ', to);
+  var extension = {
+    save_to_history: 1
+  };
+  if (notificationType) {
+    extension.notification_type = notificationType;
+  }
+
+  // file attaching
+  extension.attachments = _.map(files, function (file) {
+    return {id: file.id, type: file.content_type, name: file.name};
+  });
+  var data = {
+    type: 'groupchat',
+    body: message,
+    extension: extension
+  };
+
+  // options
+  _.each(options, function (option, i) {
+    messageObj['customParam'+i] = option;
+    data.extension['customParam'+i] = option;
+  });
+
+  // send
+  return QB.chat.send(to, data);
+}
+
+/**
+* upload
+* @param {object} file object
+* @return {Promise}
+*/
+function uploadFile(inputFile) {
+  return new Promise(function (resolve, reject) {
+    var params = {
+      name: inputFile.name,
+      file: inputFile,
+      type: inputFile.type,
+      size: inputFile.size,
+      public: false
+    };
+    QB.content.createAndUpload(params, function (err, uploadedFile) {
+      if (err) {
+        console.error(err);
+        reject(err);
+        return;
+      }
+      resolve(uploadedFile);
+    });
+  });
+}
+
+/**
+* send warning to a room
+* @param {string} to
+*/
+function sendWarning(to) {
+  var extension = {
+    save_to_history: 1
+  };
+
+  var data = {
+    type: 'chat',
+    extension: {
+      save_to_history: 1,
+      body: 'warning',
+      notification_type: NOTIFICATIONS.warning
+    }
+  };
+  QB.chat.send(to, data);
+}
+
+/**
 * update main operator attribute of a dialog
 * @return {array} messages
 */
@@ -340,17 +354,29 @@ function parseError(err) {
 }
 
 /**
-* @param {object} error response from QB
-* @return {array} error messages which users can understand
+* @param {array} tags
+* @return {array} users
 */
-function sendWarning() {
-  // body...
+function getUsersByTags(tags) {
+  return new Promise(function (resolve, reject) {
+    var params = { tags: tags};
+    QB.users.get(params, function(err, response){
+      if (!response) {
+        console.error(err);
+        reject(err);
+        return;
+      }
+      var users = _.map(response.items, function (item) {
+        return item.user;
+      });
+      resolve(users);
+    });
+  });
 }
 
 module.exports = {
   signUp: signUp,
   signIn: signIn,
-  atuoLogin: atuoLogin,
   signOut: signOut,
   sendMessage: sendMessage,
   setMessageListener: setMessageListener,
@@ -359,5 +385,7 @@ module.exports = {
   joinDialog: joinDialog,
   retrieveDialogs: retrieveDialogs,
   retrieveDialogMessages: retrieveDialogMessages,
-  updateMainOperator: updateMainOperator
+  updateMainOperator: updateMainOperator,
+  getUsersByTags: getUsersByTags,
+  sendWarning: sendWarning
 };

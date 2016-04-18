@@ -78,8 +78,6 @@ var LogInForm = React.createClass({
         <br></br>
 
         <input type="submit" onClick={this.submit} value={submitText} className="btn"></input>
-
-        <p><a href="#" onClick={this.toggleMode}>{toggleText}</a></p>
       </div>
     );
   }

@@ -6,10 +6,6 @@ var LogInForm = require('./LogInForm.jsx');
 var ChatList = require('./ChatList.jsx');
 
 var ChatModule = React.createClass({
-  propTypes: {
-    adminIds: React.PropTypes.array.isRequired
-  },
-
   getInitialState: function () {
     return {
       isFormShown: false,
@@ -19,11 +15,6 @@ var ChatModule = React.createClass({
       newOptions: [],
       newOption: ''
     };
-  },
-
-  componentWillMount: function () {
-    console.log(this.props.adminIds);
-    QBActions.setAdmin(this.props.adminIds);
   },
 
   componentDidMount: function() {
@@ -93,16 +84,14 @@ var ChatModule = React.createClass({
   render: function () {
     var chatModule = this;
     var state = this.state;
-    console.log(state.isFormShown, state.currentUser);
     var logInClass = state.isFormShown && !state.currentUser ? 'shown' : 'hidden';
     var chatClass = state.isFormShown && state.currentUser ? 'shown' : 'hidden';
     var chatNowText = state.isFormShown ? 'Hide Chat' : 'Chat Now';
 
     var messages = QBStore.getMessages().map(function (messageObj) {
       // each message view
-      console.log(messageObj);
       var className = "message ";
-      if (messageObj.sender_id===state.currentUser) {
+      if (messageObj.sender_id===state.currentUser.id) {
         className += 'operator'
       } else {
         className += messageObj.notification_type == 3 ? 'server' : 'customer';
@@ -133,7 +122,7 @@ var ChatModule = React.createClass({
 
       return (
         <div className={ className }>
-          {messageObj.message}
+          <div dangerouslySetInnerHTML={createMarkup(messageObj.message)}></div>
           { attachments }
           { options }
         </div>
@@ -153,11 +142,12 @@ var ChatModule = React.createClass({
         <button className="btn" onClick={this.toggleForm} >{chatNowText}</button>
         <div className={chatClass + ' chat-form'}>
           <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
-          <ChatList dialogs={QBStore.getDialogs()}/>
+          <br></br>
           <div className="chat-display">
             {messages}
             <br className="clear"></br>
           </div>
+          <ChatList dialogs={QBStore.getDialogs()}/>
 
           <div className="chat-input">
             <div className="new-options">
@@ -190,5 +180,9 @@ var ChatModule = React.createClass({
     });
   }
 });
+
+function createMarkup(text) {
+  return {__html: text};
+}
 
 module.exports = ChatModule;

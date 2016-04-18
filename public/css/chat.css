@@ -1,5 +1,5 @@
 .quickblox-chat {
-  width: 40vw;
+  width: 80vw;
 }
 
 .quickblox-chat input[type="text"],
@@ -25,6 +25,8 @@
 .quickblox-chat .chat-display {
   height: 500px;
   overflow-y: scroll;
+  display:inline-block;
+  width: 40%;
 }
 
 .quickblox-chat .chat-form {
@@ -42,16 +44,29 @@
   font-size: 20px;
 }
 
+.quickblox-customer-list {
+  display: inline-block;
+  width: 40%;
+/* position: absolute; */
+/* right:-0px; */
+/* width: 50%; */
+}
+
 .quickblox-chat .btn.dialog-btn {
   background-color: #9d9d9d;
 }
 
 .quickblox-chat .btn.dialog-btn.selected {
   background-color: #ebed79;
+  font-weight: bold;
 }
 
-.quickblox-chat .chat-input {
-  /*height: 20px;*/
+.quickblox-chat .btn.dialog-btn.warning {
+  background-color: #edb479;
+}
+
+.quickblox-chat .btn.dialog-btn.urgent {
+  background-color: #ed7979;
 }
 
 .quickblox-chat .new-options {
@@ -90,7 +105,11 @@
   float: right;
 }
 
-.quickblox-chat .message.admin {
+.quickblox-chat .message.operator {
+  background-color: #e9dd6f;
+  float: left;
+}
+.quickblox-chat .message.server {
   background-color: #e9e9e9;
   float: left;
 }

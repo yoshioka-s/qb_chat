@@ -22,19 +22,26 @@ var ChatList = React.createClass({
   render: function () {
     var chatList = this;
     var dialogs = this.props.dialogs.map(function (dialog) {
+      var state = '';
+      if (dialog.last_message_user_id === dialog.data.customerId) {
+        if (dialog.last_message === 'warning') {
+          state = ' warning';
+        }
+        if (dialog.last_message === 'urgent') {
+          state = ' urgent';
+        }
+      }
       var selectedClass = chatList.state.dialogId === dialog._id ? 'selected':'';
       return (
-        <div className={'btn dialog-btn '+selectedClass}
+        <div>
+        <div className={'btn dialog-btn '+selectedClass+state}
           onClick={chatList.switchDialog}
           data-target={dialog._id}
           key={dialog._id}
         >
           {dialog.name}
-        </div>);
+        </div></div>);
     });
-    // if (dialogs.length === 1) {
-    //   dialogs = [];
-    // }
 
     return (
       <div className="quickblox-customer-list">

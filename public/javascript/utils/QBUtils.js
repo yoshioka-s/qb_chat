@@ -3,7 +3,7 @@ var _ = require('underscore');
 var QB = require('quickblox');
 var CREDENTIALS = require('../../../settings/quickblox.js');
 
-const NOTIFICATIONS = {newDialog: 1, warning: 2};
+const NOTIFICATIONS = {newDialog: 1, warning: 2, server: 3, customer: 4, urgent: 5};
 
 QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret, CREDENTIALS.config);
 QB.createSession(function (err, res) {
@@ -95,20 +95,17 @@ function signOut() {
 * create new dialog with operators on user signUp
 * @param {string} name of the dialog
 * @param {array} occupantIds
+* @param {object} data
 * @return {Promise}
 */
-function createDialog(name, occupantIds) {
-  console.log('createDialog');
+function createDialog(name, occupantIds, data) {
   return new Promise(function (resolve, reject) {
+    console.log(data);
     var params = {
       type: 2,
       occupants_ids: occupantIds,
       name: name,
-      data: {
-        class_name: 'shop_dialog',
-        shopId: 'shopId',
-        main_operator: 0
-      }
+      data: data
     };
     // create a group chat dialog
     QB.chat.dialog.create(params, function (err, newDialog) {
@@ -212,12 +209,16 @@ function retrieveDialogMessages(dialogId) {
   return new Promise(function (resolve, reject) {
     // get the list of messages
     var params = {chat_dialog_id: dialogId, sort_asc: 'date_sent', limit: 50, skip: 0};
-    QB.chat.message.list(params, function(err, messages) {
+    QB.chat.message.list(params, function(err, response) {
       if (err) {
         console.error(err);
         reject(err);
         return;
       }
+      // filter warning notifications
+      messages = _.filter(response.items, function (item) {
+        return item.notification_type != NOTIFICATIONS.warning;
+      });
       resolve(messages);
     });
 
@@ -242,7 +243,8 @@ function setMessageListener(messageListener) {
 function sendMessage(message, to, options, files, notificationType) {
   console.log('sendMessage to: ', to);
   var extension = {
-    save_to_history: 1
+    save_to_history: 1,
+    to: to
   };
   if (notificationType) {
     extension.notification_type = notificationType;
@@ -263,6 +265,7 @@ function sendMessage(message, to, options, files, notificationType) {
     messageObj['customParam'+i] = option;
     data.extension['customParam'+i] = option;
   });
+  console.log('send', data);
 
   // send
   return QB.chat.send(to, data);
@@ -296,33 +299,32 @@ function uploadFile(inputFile) {
 /**
 * send warning to a room
 * @param {string} to
+* @param {string} status
 */
-function sendWarning(to) {
+function sendStatus(to, status) {
   var extension = {
     save_to_history: 1
   };
 
   var data = {
-    type: 'chat',
+    type: 'groupchat',
+    body: status,
     extension: {
       save_to_history: 1,
-      body: 'warning',
-      notification_type: NOTIFICATIONS.warning
+      notification_type: NOTIFICATIONS[status]
     }
   };
   QB.chat.send(to, data);
 }
 
 /**
-* update main operator attribute of a dialog
-* @return {array} messages
+* update state of a dialog
+* @param {string} dialogId
+* @param {string} new state
 */
-function updateMainOperator(dialogId, operatorId) {
+function updateDialogName(dialogId, name) {
   var updateParams = {
-    data: {
-      class_name: 'shop_dialog',
-      main_operator: operatorId
-    }
+      name: name
   };
   QB.chat.dialog.update(dialogId, updateParams, function(err, res) {
     if (err) {
@@ -385,7 +387,8 @@ module.exports = {
   joinDialog: joinDialog,
   retrieveDialogs: retrieveDialogs,
   retrieveDialogMessages: retrieveDialogMessages,
-  updateMainOperator: updateMainOperator,
+  updateDialogName: updateDialogName,
   getUsersByTags: getUsersByTags,
-  sendWarning: sendWarning
+  sendStatus: sendStatus,
+  NOTIFICATIONS: NOTIFICATIONS
 };

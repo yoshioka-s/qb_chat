@@ -6,6 +6,8 @@ var Cookies = require('cookies-js');
 var _ = require('underscore');
 
 var COOKIE_NAME = 'QBName';
+var COOKIE_ID = 'QBID';
+var COOKIE_SID = 'connect.sid';
 var MAX_USERNAME_LENGTH = 40;
 
 function createDialog(shopId) {
@@ -16,7 +18,12 @@ function createDialog(shopId) {
       return operator.id;
     });
     var dialogName = shopId + Cookies.get(COOKIE_NAME);
-    return QBUtils.createDialog(dialogName, operatorIds);
+    var data = {
+      class_name: 'shop_dialog',
+      shopId: shopId,
+      customerId: Cookies.get(COOKIE_ID)
+    };
+    return QBUtils.createDialog(dialogName, operatorIds, data);
   });
 }
 
@@ -42,16 +49,15 @@ window.ChatUtils = {
   autoLogin: function () {
     // check if username is stored in cookie
     var username = Cookies.get(COOKIE_NAME);
-    console.log('cookie username: ', username);
     if (username) {
       return QBUtils.signIn(username, username);
     }
-    username = Cookies.get('connect.sid').substring(0, MAX_USERNAME_LENGTH);
-    console.log('sid', username);
+    username = Cookies.get(COOKIE_SID).substring(0, MAX_USERNAME_LENGTH);
     return QBUtils.signUp(username, username, 'customer')
     .then(function (user) {
-      // save username in cookie
+      // save username, user ID in cookie
       Cookies.set(COOKIE_NAME, username);
+      Cookies.set(COOKIE_ID, user.id);
       return user;
     });
   },
@@ -59,17 +65,21 @@ window.ChatUtils = {
   forwardMessages: function (shopId, serverMessage, customerMessage) {
     return getDialog(shopId)
     .then(function (dialog) {
-      QBUtils.sendMessage(serverMessage, dialog.xmpp_room_jid, null, null, 3);
+      QBUtils.sendMessage(serverMessage, dialog.xmpp_room_jid, null, null, QBUtils.NOTIFICATIONS.server);
       QBUtils.sendMessage(customerMessage, dialog.xmpp_room_jid);
     });
 
   },
 
   sendWarning: function (shopId) {
-    return QBUtils.getUsersByTags(shopId)
-    .then(function (operators) {
-      _.forEach(operators, function (operator) {
-        QBUtils.sendWarning(operator.id);
+    return getDialog(shopId)
+    .then(function (dialog) {
+      QBUtils.sendStatus(dialog.xmpp_room_jid, 'warning');
+      QBUtils.getUsersByTags(shopId)
+      .then(function (operators) {
+        _.forEach(operators, function (operator) {
+          QBUtils.sendWarning(operator.id);
+        });
       });
     });
   },
@@ -77,7 +87,23 @@ window.ChatUtils = {
   sendMessage: function (shopId, message) {
     return getDialog(shopId)
     .then(function (dialog) {
-      QBUtils.sendMessage(message, dialog.xmpp_room_jid);
+      QBUtils.sendMessage(message, dialog.xmpp_room_jid, null, null, QBUtils.NOTIFICATIONS.customer);
     });
+  },
+
+  setOnMessage: function (callback) {
+    this._onMessage = callback;
+  },
+  _onMessage: function (userId, message) {
+    console.log(message);
   }
 };
+
+QBUtils.setMessageListener(function (userId, message) {
+  // on my messages, send urgent status notification
+  if (message.extension && message.extension.notification_type == QBUtils.NOTIFICATIONS.customer) {
+    console.log('send urgent');
+    QBUtils.sendStatus(message.extension.to, 'urgent');
+  }
+  ChatUtils._onMessage(userId, message);
+});

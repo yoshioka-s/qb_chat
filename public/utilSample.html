@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Chat test</title>
+    <link rel="stylesheet" href="./css/chat.css" media="screen">
+  </head>
+
+  <body>
+    <h1>Chat test</h1>
+
+    <button type="button" id="login">Log in!</button>
+
+    <div id="chat">
+      <div class="new-message">
+        <input type="text" name="message" value="" id="message" placeholder="type your message...">
+        <input type="button" name="submit" value="submit" id="submit" class="btn">
+      </div>
+      <button type="button" id="warning">Send Warning</button>
+      <div class="messages">
+        <ul id="message-list">
+
+        </ul>
+      </div>
+      <button type="button" id="forward">forward server messages</button>
+    </div>
+
+
+    <script src="//code.jquery.com/jquery-1.12.0.min.js"></script>
+    <script type="text/javascript" src="./javascript/chatUtils-bundle.js"></script>
+    <script type="text/javascript" src="./javascript/util-sample.js"></script>
+  </body>
+
+</html>

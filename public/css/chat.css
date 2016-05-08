@@ -6,10 +6,10 @@
 .quickblox-chat input[type="password"],
 .quickblox-chat select,
 .quickblox-chat textarea {
-	box-sizing: content-box;
-	border: 1px solid #CCCCCC;
-	border-radius: 5px;
-	box-shadow: 1px 1px 1px #DEDEDE inset;
+  box-sizing: content-box;
+  border: 1px solid #CCCCCC;
+  border-radius: 5px;
+  box-shadow: 1px 1px 1px #DEDEDE inset;
   padding: 5px;
   width: 100%;
   background: #F5F5F5;
@@ -26,7 +26,7 @@
   height: 500px;
   overflow-y: scroll;
   display:inline-block;
-  width: 40%;
+  width: 100%;
 }
 
 .quickblox-chat .chat-form {
@@ -45,15 +45,16 @@
 }
 
 .quickblox-customer-list {
-  display: inline-block;
-  width: 40%;
-/* position: absolute; */
-/* right:-0px; */
-/* width: 50%; */
+  display: block;
+  width: 100%;
+  overflow-x: scroll;
 }
 
 .quickblox-chat .btn.dialog-btn {
   background-color: #9d9d9d;
+  display: inline;
+  width: 50px;
+  overflow-x: hidden;
 }
 
 .quickblox-chat .btn.dialog-btn.selected {

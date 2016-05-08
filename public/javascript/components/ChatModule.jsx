@@ -19,6 +19,9 @@ var ChatModule = React.createClass({
 
   componentDidMount: function() {
     QBStore.addChangeListener(this._onChange);
+    if (this.state.isOptionInput) {
+      this.refs.optionInput.focus();
+    }
   },
 
   /**
@@ -88,7 +91,7 @@ var ChatModule = React.createClass({
     var chatClass = state.isFormShown && state.currentUser ? 'shown' : 'hidden';
     var chatNowText = state.isFormShown ? 'Hide Chat' : 'Chat Now';
 
-    var messages = QBStore.getMessages().map(function (messageObj) {
+    var messages = QBStore.getMessages().map(function (messageObj, messageKey) {
       // each message view
       var className = "message ";
       if (messageObj.sender_id===state.currentUser.id) {
@@ -98,17 +101,21 @@ var ChatModule = React.createClass({
       }
 
       var options = [];
-      _.each(messageObj, function (value, key) {
+      options = _.map(messageObj, function (value, key) {
         if (key.indexOf('customParam') === 0) {
-          options.push(<p><input type="radio" name="option" onClick={chatModule.selectOption} value={value}></input>{value}</p>);
+          return (
+            <p key={key}>
+              <input type="radio" name="option" onClick={chatModule.selectOption} value={value}></input>{value}
+            </p>
+          );
         }
       });
 
       var attachments = [];
       if (messageObj.attachments&&messageObj.attachments.length > 0) {
-        attachments = messageObj.attachments.map(function (file) {
+        attachments = _.map(messageObj.attachments, function (file, key) {
           return (
-            <p>
+            <p key={key}>
               <a href={"http://api.quickblox.com/blobs/"+file.id+"/download?token="+QBStore.getSessionToken()}>{file.name}</a>
             </p>
           );
@@ -121,7 +128,7 @@ var ChatModule = React.createClass({
       }, 100);
 
       return (
-        <div className={ className }>
+        <div className={ className } key={messageKey}>
           <div dangerouslySetInnerHTML={createMarkup(messageObj.message)}></div>
           { attachments }
           { options }
@@ -129,29 +136,29 @@ var ChatModule = React.createClass({
       );
     });
 
-    var newOptions = this.state.newOptions.map(function (newOption) {
-      return <p><input type="radio"></input>{newOption}</p>
+    var newOptions = _.map(this.state.newOptions, function (newOption, key) {
+      return <p key={key}><input type="radio"></input>{newOption}</p>
     });
 
-    var files = _.map(QBStore.getUploadedFiles(), function (file) {
-      return <p>{file.name}</p>;
+    var files = _.map(QBStore.getUploadedFiles(), function (file, key) {
+      return <p key={key}>{file.name}</p>;
     });
 
     return (
       <div className="quickblox-chat">
         <button className="btn" onClick={this.toggleForm} >{chatNowText}</button>
+        <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
+        <ChatList dialogs={QBStore.getDialogs()}/>
         <div className={chatClass + ' chat-form'}>
-          <button className={chatClass + ' btn'} onClick={this.signOut}>Sign out</button>
           <br></br>
           <div className="chat-display">
             {messages}
             <br className="clear"></br>
           </div>
-          <ChatList dialogs={QBStore.getDialogs()}/>
 
           <div className="chat-input">
             <div className="new-options">
-              <input type="text" className={this.state.isOptionInput ? '':'hidden'} onChange={this.onChangeOptionInput} value={this.state.newOption}></input>
+              <input type="text" className={this.state.isOptionInput ? '':'hidden'} onChange={this.onChangeOptionInput} value={this.state.newOption} ref="optionInput"></input>
               <button className="btn" onClick={this.showOptionInput}>{this.state.isOptionInput ? 'OK':'add option'}</button>
               {newOptions}
             </div>

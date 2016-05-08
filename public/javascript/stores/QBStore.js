@@ -166,7 +166,6 @@ var QBStore = assign({}, EventEmitter.prototype, {
   },
 
   getDialogs: function () {
-    console.log(_dialogs);
     return _dialogs;
   },
 
@@ -174,6 +173,10 @@ var QBStore = assign({}, EventEmitter.prototype, {
     return _loginErrors;
   },
 
+  getSessionToken: function () {
+    return QBUtils.getSessionToken();
+  },
+  
   emitChange: function() {
     this.emit(CHANGE_EVENT);
   },

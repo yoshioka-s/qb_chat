@@ -14,6 +14,10 @@ var LogInForm = React.createClass({
     };
   },
 
+  componentDidMount: function () {
+    this.refs.nameInput.focus();
+  },
+
   /**
   * submit sign up / log in info to server
   */
@@ -32,6 +36,12 @@ var LogInForm = React.createClass({
     }
     this.setState({confirmError: ''});
     QBActions.signUp(this.state.name, this.state.password);
+  },
+
+  keyPress: function (e) {
+    if(e.key === 'Enter') {
+      this.submit();
+    }
   },
 
   toggleMode: function () {
@@ -62,10 +72,10 @@ var LogInForm = React.createClass({
     }
 
     return (
-      <div>
+      <div onKeyPress={this.keyPress}>
         <h3>{title}</h3>
 
-        <input type="text" onChange={this.onNameChange} placeholder="user name"></input>
+        <input type="text" onChange={this.onNameChange} placeholder="user name" ref="nameInput"></input>
         <span className="error-message">{this.props.loginErrors.username}</span>
         <br></br>
 

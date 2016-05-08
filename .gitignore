@@ -1,3 +1,4 @@
 node_modules/
 public/javascript/chat-bundle.js
 public/javascript/chatUtils-bundle.js
+*.swp

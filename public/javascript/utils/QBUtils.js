@@ -5,12 +5,15 @@ var CREDENTIALS = require('../../../settings/quickblox.js');
 
 const NOTIFICATIONS = {newDialog: 1, warning: 2, server: 3, customer: 4, urgent: 5};
 
+var _sessionToken = '';
+
 QB.init(CREDENTIALS.appId, CREDENTIALS.authKey, CREDENTIALS.authSecret, CREDENTIALS.config);
 QB.createSession(function (err, res) {
   if (err) {
     console.error(err);
     return;
   }
+  _sessionToken = res.token;
 });
 
 /**
@@ -241,7 +244,6 @@ function setMessageListener(messageListener) {
 * @param {number} notificationType (optional)
 */
 function sendMessage(message, to, options, files, notificationType) {
-  console.log('sendMessage to: ', to);
   var extension = {
     save_to_history: 1,
     to: to
@@ -262,10 +264,8 @@ function sendMessage(message, to, options, files, notificationType) {
 
   // options
   _.each(options, function (option, i) {
-    messageObj['customParam'+i] = option;
     data.extension['customParam'+i] = option;
   });
-  console.log('send', data);
 
   // send
   return QB.chat.send(to, data);
@@ -376,6 +376,13 @@ function getUsersByTags(tags) {
   });
 }
 
+/**
+ * @return {string} session token for QB
+ */
+function getSessionToken () {
+  return _sessionToken;
+}
+
 module.exports = {
   signUp: signUp,
   signIn: signIn,
@@ -390,5 +397,6 @@ module.exports = {
   updateDialogName: updateDialogName,
   getUsersByTags: getUsersByTags,
   sendStatus: sendStatus,
+  getSessionToken: getSessionToken,
   NOTIFICATIONS: NOTIFICATIONS
 };

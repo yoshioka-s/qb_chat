@@ -13,7 +13,6 @@ var MAX_USERNAME_LENGTH = 40;
 function createDialog(shopId) {
   return QBUtils.getUsersByTags(shopId)
   .then(function (operators) {
-    console.log(operators);
     var operatorIds = _.map(operators, function (operator) {
       return operator.id;
     });
@@ -75,12 +74,6 @@ window.ChatUtils = {
     return getDialog(shopId)
     .then(function (dialog) {
       QBUtils.sendStatus(dialog.xmpp_room_jid, 'warning');
-      QBUtils.getUsersByTags(shopId)
-      .then(function (operators) {
-        _.forEach(operators, function (operator) {
-          QBUtils.sendWarning(operator.id);
-        });
-      });
     });
   },
 
@@ -102,7 +95,6 @@ window.ChatUtils = {
 QBUtils.setMessageListener(function (userId, message) {
   // on my messages, send urgent status notification
   if (message.extension && message.extension.notification_type == QBUtils.NOTIFICATIONS.customer) {
-    console.log('send urgent');
     QBUtils.sendStatus(message.extension.to, 'urgent');
   }
   ChatUtils._onMessage(userId, message);

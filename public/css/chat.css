@@ -22,6 +22,9 @@
   background: #FBFBFB;
 }
 
+.quickblox-chat input[type="file"]{
+  font-size: 20px;
+}
 .quickblox-chat .chat-display {
   height: 500px;
   overflow-y: scroll;
@@ -37,9 +40,11 @@
 }
 
 .quickblox-chat .btn {
-  background-color: #9dcb2c;
+  background-color: #72a7c6;
   display: inline-block;
   border-radius: 5px;
+  border-width: 2px;
+  border-color: #353478;
   padding: 10px 15px;
   font-size: 20px;
 }
@@ -48,13 +53,19 @@
   display: block;
   width: 100%;
   overflow-x: scroll;
+  white-space: nowrap;
+  height: 50px;
+  padding-top: 15px
 }
 
 .quickblox-chat .btn.dialog-btn {
   background-color: #9d9d9d;
   display: inline;
-  width: 50px;
-  overflow-x: hidden;
+  min-width: 50px;
+  border-color: #000000;
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 10px 10px 0 0;
 }
 
 .quickblox-chat .btn.dialog-btn.selected {
@@ -63,11 +74,22 @@
 }
 
 .quickblox-chat .btn.dialog-btn.warning {
-  background-color: #edb479;
+  animation: orange-flash 1s infinite;
+}
+@keyframes orange-flash {
+  100% {
+    background-color: #edb479;
+  }
 }
 
 .quickblox-chat .btn.dialog-btn.urgent {
+  animation: red-flash 1s infinite;
   background-color: #ed7979;
+}
+@keyframes red-flash {
+  100% {
+    background-color: #da4747;
+  }
 }
 
 .quickblox-chat .new-options {
@@ -81,7 +103,11 @@
 }
 
 .quickblox-chat .message-input {
-  width: 100%;
+  width: 85%;
+}
+.quickblox-chat .send {
+  width: 10%;
+  float: right;
 }
 
 .quickblox-chat .hidden {

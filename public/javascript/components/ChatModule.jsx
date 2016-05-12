@@ -157,19 +157,16 @@ var ChatModule = React.createClass({
           </div>
 
           <div className="chat-input">
-            <div className="new-options">
-              <input type="text" className={this.state.isOptionInput ? '':'hidden'} onChange={this.onChangeOptionInput} value={this.state.newOption} ref="optionInput"></input>
-              <button className="btn" onClick={this.showOptionInput}>{this.state.isOptionInput ? 'OK':'add option'}</button>
-              {newOptions}
-            </div>
+            <textarea className="message-input" name="message" onChange={this.onChangeMessage} value={state.newMessage} placeholder="type message here"></textarea>
+            <input type="button" className="btn send" onClick={this.sendMessage} value="send"></input>
             <div className="uploaded-files">
               <input type="file" className="" onChange={this.sendFile}></input>
               {files}
             </div>
-            <textarea className="message-input" name="message" onChange={this.onChangeMessage} value={state.newMessage} placeholder="type message here"></textarea>
-            <br></br>
-            <div className="align-right">
-              <input type="button" className="btn" onClick={this.sendMessage} value="send"></input>
+            <div className="new-options">
+              <input type="text" className={this.state.isOptionInput ? '':'hidden'} onChange={this.onChangeOptionInput} value={this.state.newOption} ref="optionInput"></input>
+              <button className="btn" onClick={this.showOptionInput}>{this.state.isOptionInput ? 'OK':'add option'}</button>
+              {newOptions}
             </div>
           </div>
 

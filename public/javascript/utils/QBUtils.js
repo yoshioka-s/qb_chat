@@ -14,6 +14,7 @@ QB.createSession(function (err, res) {
     return;
   }
   _sessionToken = res.token;
+  console.log('connected');
 });
 
 /**
